@@ -1,0 +1,19 @@
+@relation app-text 
+@attribute appcategory {Finance, Entertainment, Education, Books_Reference, Lifestyle, Media_Video, Photography, Travel_Local, Music_Audio, Transport, Sports, Health_Fitness} 
+@attribute text String 
+
+@data 
+
+Books_Reference,'previous review now appear google user sign google cancel google play review now use google easier s'
+Education,'sic book joe demarium free audio book work work advertise free good selection book well shavon sabin'
+Entertainment,'ation update january size install current version require android content rating rate learn interact'
+Photography,' unparalleled creativity work wide range new brush pencil ink pen brush pen crayon airbrush watercol'
+Finance,'k mid cap stock large cap stock trade bond market offer live investment different type bond addition'
+Health_Fitness,'ating helpfulness write review edit review total amit shah now start turn use much battery make phon'
+Lifestyle,'ecommendation day sure love bit food rut let help cornucopia tasty suggestion cook yum better get pe'
+Music_Audio,'mory 5star app sooooo coool can use quickley wiv spend much time aaron younghusband take step back o'
+Travel_Local,'lness write review edit review total google user poor use screen space try use phone landscape mode '
+Media_Video,'find one fit special occasion preview page edit order amp focus music subtitle use slideshow page ca'
+Sports,'een widget pro fast support time lite delay support time pro version support follow league lite vers'
+Transport,'iew review helpfulness rating helpfulness write review edit review total felipe chavez wait hour som'
+Sports,'previous review now appear google user sign google cancel google play review now use google easier s'
