@@ -57,11 +57,11 @@ func (inst *Instances) processHeader(filepath string) error {
 		line := reader.Text()
 		if !strings.HasPrefix(line, "@data") {
 			if strings.HasPrefix(line, "@relation") {
-				fmt.Println("Reading @relation field")
+				//fmt.Println("Reading @relation field")
 				inst.SetDatasetName(strings.TrimPrefix(line, "@relation "))
 				inst.SetDatasetName(strings.TrimPrefix(line, "@relation "))
 			} else if strings.HasPrefix(line, "@attribute") {
-				fmt.Println("Reading ", "@attribute", " field")
+				//fmt.Println("Reading ", "@attribute", " field")
 				inst.parseAttribute(line, attrIndex)
 				attrIndex++
 			}
@@ -74,8 +74,8 @@ func (inst *Instances) processHeader(filepath string) error {
 
 func (inst *Instances) parseAttribute(line string, attrIndex int) {
 	fields := strings.Fields(strings.ToLower(strings.TrimPrefix(line, "@attribute")))
-	fmt.Println(len(fields))
-	fmt.Println(fields[0])
+	//fmt.Println(len(fields))
+	//fmt.Println(fields[0])
 	if len(fields) < 2 {
 		panic("Attribute's name is not defined, check your dataset.")
 	}
@@ -88,16 +88,16 @@ func (inst *Instances) parseAttribute(line string, attrIndex int) {
 	attr_type := fields[1]
 	if attr_type == attr.Arff_Integer || attr_type == attr.Arff_Numeric || attr_type == attr.Arff_Real {
 		//Parse numeric attribute
-		fmt.Println("parsing numeric attribute")
+		//fmt.Println("parsing numeric attribute")
 		attr.SetType(NUMERIC)
 		if strings.Contains(line, "[") && strings.Contains(line, "]") {
-			fmt.Println("parsing bounds")
+			//fmt.Println("parsing bounds")
 			bounds := line[strings.Index(line, "[")+1 : strings.Index(line, "]")] //example: "[23, 89]", bounds = "23, 89"
-			fmt.Println("bounds: ", bounds)
+			//fmt.Println("bounds: ", bounds)
 			min := strings.TrimSpace(bounds[:strings.Index(bounds, ",")])
-			fmt.Println("min: ", min)
+			//fmt.Println("min: ", min)
 			max := strings.TrimSpace(bounds[strings.Index(bounds, ",")+1:])
-			fmt.Println("max: ", max)
+			//fmt.Println("max: ", max)
 			min_float, err := strconv.ParseFloat(min, 64)
 			if err != nil {
 				panic(fmt.Errorf("Impossible to cast from string to float, bad bounds declaration in min at line '%s'", line))
@@ -120,7 +120,7 @@ func (inst *Instances) parseAttribute(line string, attrIndex int) {
 		}
 	} else if attr_type == attr.Arff_String {
 		//Parse string attribute
-		fmt.Println("parsing string attribute")
+		//fmt.Println("parsing string attribute")
 		attr.SetType(STRING)
 		attr.SetIndex(attrIndex)
 		if attrIndex == inst.classIndex {
@@ -130,7 +130,7 @@ func (inst *Instances) parseAttribute(line string, attrIndex int) {
 		}
 	} else if strings.Contains(line, "{") && strings.Contains(line, "}") {
 		//is nominal attribute
-		fmt.Println("parsing nominal attribute")
+		//fmt.Println("parsing nominal attribute")
 		attr.SetType(NOMINAL)
 		attr.SetHasFixedBounds(true)
 		nominalValues(line[strings.Index(line, "{")+1:strings.Index(line, "}")], &attr)
@@ -146,7 +146,7 @@ func (inst *Instances) parseAttribute(line string, attrIndex int) {
 }
 
 func nominalValues(line string, attr *Attribute) {
-	fmt.Println(line)
+	//fmt.Println(line)
 	line = strings.TrimSpace(strings.Replace(strings.Replace(line, " ", "", -1), ",", " ", -1))
 	vals := strings.Fields(line)
 	valuesIndexes := make(map[string]int)
@@ -155,7 +155,7 @@ func nominalValues(line string, attr *Attribute) {
 		valuesIndexes[value] = index
 		values[index] = value
 	}
-	fmt.Println(values)
+	//fmt.Println(values)
 	attr.SetValues(values)
 	attr.SetValuesIndexes(valuesIndexes)
 }
@@ -175,7 +175,7 @@ func (inst *Instances) parseInstances(filepath string) error {
 		return err
 	}
 	defer file.Close()
-	fmt.Println("Parsing instances.")
+	//fmt.Println("Parsing instances.")
 	reader := bufio.NewScanner(file)
 	for reader.Scan() {
 		line := reader.Text()
@@ -189,7 +189,7 @@ func (inst *Instances) parseInstances(filepath string) error {
 		if len(line) == 0 {
 			continue
 		}
-		fmt.Println(line)
+		//fmt.Println(line)
 		instance := NewInstance()
 		//make sure the instance is well-read
 		line = strings.TrimSpace(line)
@@ -248,7 +248,7 @@ func (inst *Instances) readValue(attr *Attribute, direction int, val string, idx
 			val = strings.Trim(val, "'")
 			instance.AddValues(val)
 			instance.AddRealValues(float64(attr.AddStringValue(val)))
-			fmt.Println(val)
+			//fmt.Println(val)
 			break
 		}
 	}

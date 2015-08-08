@@ -17,12 +17,19 @@ func main() {
 //		}
 //	}
 //
-	for _, inst := range instances.Instances() {
-		fmt.Println(inst.Values())
-		fmt.Println(inst.RealValues())
-	}
+//	for _, inst := range instances.Instances() {
+//		fmt.Println(inst.Values())
+//		fmt.Println(inst.RealValues())
+//	}
 	stwv := functions.NewStringToWordVectorInst(instances)
+	stwv.SetIDF_Transformation(true)
+	stwv.SetTF_Transformation(true)
+	stwv.SetWordsToKeep(15)
+	stwv.SetPerClass(false)
+	stwv.SetNormalize(false)
 	processed := stwv.Exec()
+	processed = stwv.Exec()
+	processed.ClassIndex()
 //	for _, attr := range processed.Attributes() {
 //		fmt.Println(attr.Name(), attr.Type())
 //		for idx, val := range attr.Values() {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"omap"
+	"sort"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ type Count struct {
 type StringToWordVector struct {
 	firstTime bool
 	//Contains a mapping of valid words to attribute indexes.
-	dictionary map[string]float64
+	dictionary *omap.Map
 	//True if output instances should contain word frequency rather than boolean 0 or 1.
 	outputsCounts bool
 	//Contains the number of documents (instances) a particular word appears in.
@@ -38,7 +39,7 @@ type StringToWordVector struct {
 	//assigned) to attempt to keep.
 	wordsToKeep int
 	//Which transformation
-	transformation int
+	tf_transformation, idf_transformation bool
 	//The percentage at which to periodically prune the dictionary.
 	perdiodicPruningRate int
 	//Use normalization or not
@@ -56,20 +57,20 @@ type StringToWordVector struct {
 //New StringToWordVector function with default values
 func NewStringToWordVectorInst(inputData data.Instances) StringToWordVector {
 	var stwv StringToWordVector
-	stwv.dictionary = make(map[string]float64, 0)
+	stwv.dictionary = omap.NewStringKeyed()
 	stwv.outputsCounts = false
 	stwv.docsCounts = make([]int, 0)
 	stwv.avgDocLength = -1
-	stwv.wordsToKeep = 3
+	stwv.wordsToKeep = 1000
 	stwv.numInstances = -1
 	stwv.perdiodicPruningRate = -1
-	stwv.minTermFreq = -1
+	stwv.minTermFreq = 1
 	stwv.perClass = true
 	stwv.normalize = true
 	stwv.inputFormat = inputData
 	stwv.outputFormat = data.NewInstancesWithClassIndex(inputData.ClassIndex())
 	stwv.firstTime = true
-	stwv.transformation = 0
+	stwv.tf_transformation, stwv.idf_transformation = true, true
 	return stwv
 }
 
@@ -104,9 +105,11 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 			docLength := float64(0)
 			for j := 0; j < len(inst.RealValues()); j++ {
 				if inst.Indices()[j] >= firstCopy {
-					docLength += math.Pow(inst.RealValues()[j], 2)
+					//fmt.Println("inst.RealValues()[j] ", inst.RealValues()[j])
+					docLength += inst.RealValues()[j] * inst.RealValues()[j]
 				}
 			}
+			fmt.Println("docLength ", docLength)
 			stwv.avgDocLength += math.Sqrt(docLength)
 		}
 		stwv.avgDocLength /= float64(stwv.numInstances)
@@ -117,8 +120,22 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 			}
 		}
 		stwv.outputFormat.SetInstances(fv)
+	} else {
+		fv := make([]data.Instance, 0)
+		firstCopy := 0
+		for i := 0; i < stwv.numInstances; i++ {
+			firstcopy, v := stwv.convertInstancewoDocNorm(stwv.inputFormat.Instances()[i])
+			fv = append(fv, v)
+			firstCopy = firstcopy
+		}
+		if stwv.normalize {
+			for _, inst := range fv {
+				stwv.normalizeInstance(&inst, firstCopy)
+			}
+		}
 	}
 	fmt.Println("Done!")
+	stwv.firstTime = false
 	return stwv.outputFormat
 }
 
@@ -130,9 +147,9 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	if stwv.perClass && (classInd != -1) {
 		values = len(inst.Attributes()[classInd].Values())
 	}
-	dicA := make([]map[string]Count, values)
+	dicA := make([]*omap.Map, values)
 	for i := 0; i < values; i++ {
-		dicA[i] = make(map[string]Count, 0)
+		dicA[i] = omap.NewStringKeyed()
 	}
 	// Tokenize all training text into an orderedMap of "words".
 	pruneRate := int64((stwv.perdiodicPruningRate / 100) * len(inst.Instances()))
@@ -155,11 +172,12 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 						hashtable[word] = 0
 					}
 					//fmt.Println(word)
-					if count, present := dicA[vInd][word]; !present {
-						dicA[vInd][word] = Count{1, 0}
+					if count, present := dicA[vInd].Find(word); !present {
+						dicA[vInd].Insert(word, Count{1, 0})
 					} else {
+						count, _ := count.(Count)
 						count.Count++
-						dicA[vInd][word] = count
+						dicA[vInd].Insert(word, count)
 					}
 					//fmt.Println(dicA[vInd][word])
 				}
@@ -167,34 +185,43 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 		}
 		//updating the docCount for the words that have occurred in this
 		//instance(document).
-		enumeration := make([]string, len(hashtable))
-		m := 0
+		enumeration := make([]string, 0, len(hashtable))
 		for word, _ := range hashtable { //only the words
-			enumeration[m] = word
-			m++
+			enumeration = append(enumeration, word)
 		}
 		for _, word := range enumeration {
-			if count, present := dicA[vInd][word]; present {
+			if count, present := dicA[vInd].Find(word); present {
+				count := count.(Count)
 				count.DocCount++
 				//delete(dicA[vInd], word)
-				dicA[vInd][word] = count
+				dicA[vInd].Insert(word, count)
 				//fmt.Println(word, " ",dicA[vInd][word])
 			} else {
 				panic("Check the code, there must be a word in the dictionary")
 			}
+			fmt.Println(dicA[vInd].Find(word))
 		}
+
 		if pruneRate > 0 {
 			if int64(i)%pruneRate == 0 && i > 0 {
 				for z := 0; z < values; z++ {
 					d := make([]string, 1000)
-					for word, _ := range dicA[z] {
-						count := dicA[z][word]
+					dicA[z].Do(func(key, value interface{}) {
+						word, _ := key.(string)
+						count, _ := value.(Count)
 						if count.Count <= 1 {
 							d = append(d, word)
 						}
-					}
+					})
+					//					for word, _ := range dicA[z] {
+					//						count := dicA[z][word]
+					//						if count.Count <= 1 {
+					//							d = append(d, word)
+					//						}
+					//					}
 					for _, word := range d {
-						delete(dicA[z], word)
+						dicA[z].Delete(word)
+						//delete(dicA[z], word)
 					}
 				}
 			}
@@ -206,27 +233,37 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	totalSize := int(0)
 	prune := make([]int, values)
 	for z := 0; z < values; z++ {
-		totalSize += len(dicA[z])
-		array := make([]int, len(dicA[z]))
+		totalSize += dicA[z].Len()
+		array := make([]int, dicA[z].Len())
 		pos := int(0)
-		for word, _ := range dicA[z] {
-			count := dicA[z][word]
+		dicA[z].Do(func(key, value interface{}) {
+			//_, _ := key.(string)
+			count, _ := value.(Count)
 			array[pos] = count.Count
 			pos++
-		}
-		array = sortArray(array)
+		})
+		//		for word, _ := range dicA[z] {
+		//			count := dicA[z][word]
+		//			array[pos] = count.Count
+		//			pos++
+		//		}
+		sort.Ints(array)
+		fmt.Println(array)
 		if len(array) < stwv.wordsToKeep {
 			// if there aren't enough words, set the threshold to
 			// minFreq
 			prune[z] = int(stwv.minTermFreq)
 		} else {
 			// otherwise set it to be at least minFreq
-			prune[z] = int(math.Max(float64(stwv.minTermFreq), float64(array[len(array)-stwv.wordsToKeep])))
+			idx := len(array) - stwv.wordsToKeep
+			prune[z] = int(math.Max(float64(stwv.minTermFreq), float64(array[idx])))
 		}
+		//fmt.Println(prune[z])
 	}
 	// Convert the dictionary into an attribute index
 	// and create one attribute per word
 	attributes := make([]data.Attribute, 0, totalSize+len(inst.Attributes()))
+	fmt.Println(totalSize+len(inst.Attributes()), "len(attributes)")
 	// Add the non-converted attributes
 	classIndex := int(-1)
 	for i, attr := range stwv.inputFormat.Attributes() {
@@ -234,45 +271,75 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 			if inst.ClassIndex() == i {
 				classIndex = len(attributes)
 			}
-			fmt.Println(attr)
+			//fmt.Println(attr)
 			attributes = append(attributes, attr)
 		}
 	}
 	// Add the word vector attributes (eliminating duplicates
 	// that occur in multiple classes)
-	newDic := make(map[string]float64, 0)
+	newDic := omap.NewStringKeyed()
 	index := len(attributes)
-	//fmt.Println("-----------/********************//////////////////", index)
 	for z := 0; z < values; z++ {
-		for word, _ := range dicA[z] {
-			count := dicA[z][word]
+		dicA[z].Do(func(key, value interface{}) {
+			word, _ := key.(string)
+			count, _ := value.(Count)
 			if count.Count >= prune[z] {
-				if _, present := newDic[word]; !present {
-					newDic[word] = float64(index)
+				if _, present := newDic.Find(word); !present {
+					newDic.Insert(word, int(index))
 					index++
 					att := data.NewAttribute()
 					att.SetName(word)
 					att.SetType(data.STRING)
 					attributes = append(attributes, att)
+					//fmt.Println(index)
 				}
 			}
-		}
+
+		})
+		//		for word, _ := range dicA[z] {
+		//			count := dicA[z][word]
+		//			//fmt.Println(count.Count, prune[z])
+		//			if count.Count >= prune[z] {
+		//				if _, present := newDic[word]; !present {
+		//					newDic[word] = float64(index)
+		//					index++
+		//					att := data.NewAttribute()
+		//					att.SetName(word)
+		//					att.SetType(data.STRING)
+		//					attributes = append(attributes, att)
+		//					fmt.Println(index)
+		//				}
+		//			}
+		//		}
 	}
+	//fmt.Println(newDic)
 	// Compute document frequencies
 	stwv.docsCounts = make([]int, len(attributes))
 	//idx := 0
-	for word, idx := range newDic {
+	newDic.Do(func(key, value interface{}) {
+		word, _ := key.(string)
+		idx, _ := value.(int)
 		docsCount := 0
 		for j := 0; j < values; j++ {
-			if count, present := dicA[j][word]; present {
+			if count, present := dicA[j].Find(word); present {
+				count := count.(Count)
+				//fmt.Println(count.DocCount, "doccount newdic")
 				docsCount += count.DocCount
 			}
 		}
-		stwv.docsCounts[int(idx)] = docsCount
-		//idx++
-
-	}
-	//fmt.Println(newDic)
+		stwv.docsCounts[idx] = docsCount
+	})
+	//	for word, idx := range newDic {
+	//		docsCount := 0
+	//		for j := 0; j < values; j++ {
+	//			if count, present := dicA[j][word]; present {
+	//				docsCount += count.DocCount
+	//			}
+	//		}
+	//		stwv.docsCounts[int(idx)] = docsCount
+	//		//idx++
+	//	}
+	fmt.Println("doc: ", stwv.docsCounts)
 	stwv.dictionary = newDic
 	////fmt.Println("numInst", len(inst.Instances()))
 	stwv.numInstances = len(inst.Instances())
@@ -317,73 +384,111 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 			//fmt.Println("print 2")
 			words := strings.Fields(inst.Values()[j])
 			//fmt.Println(stwv.dictionary)
-			fmt.Println("------------------------------------------------")
+			//fmt.Println("------------------------------------------------")
 			for _, word := range words {
 				//fmt.Println("print 3", idx)
-				if index, present := stwv.dictionary[word]; present {
+				if index, present := stwv.dictionary.Find(word); present {
 					if stwv.outputsCounts {
 						if count, isthere := contained.Find(index); isthere {
 							if count, ok := count.(float64); ok { //type assertion
-								contained.Insert(int(index), count+1)
-								mapKeys = append(mapKeys, index)
+								contained.Insert(int(index.(int)), count+1)
+								mapKeys = append(mapKeys, float64(index.(int)))
 							}
 						} else {
 							//fmt.Println(index)
-							contained.Insert(int(index), float64(1))
-							mapKeys = append(mapKeys, index)
+							contained.Insert(int(index.(int)), float64(1))
+							mapKeys = append(mapKeys, float64(index.(int)))
 						}
 					} else {
 						//fmt.Println(index)
-						contained.Insert(int(index), float64(1))
-						mapKeys = append(mapKeys, index)
+						contained.Insert(int(index.(int)), float64(1))
+						mapKeys = append(mapKeys, float64(index.(int)))
 					}
 				}
 			}
 		}
 	}
-	//fmt.Println(mapKeys)
-
+	//To calculate frequencies
+	indexes := make([]int, contained.Len())
+	_values := make([]float64, contained.Len())
+	n := 0
+	contained.Do(func(key, value interface{}) {
+		//fmt.Println(key, " <-->", value)
+		index, _ := key.(int)
+		_value, _ := value.(float64)
+		indexes[n] = index
+		_values[n] = _value
+		n++
+	})
+	//------------
 	//TF_freq transform
-	if stwv.transformation == TF {
-		contained.Do(func(key, value interface{}) {
-			k, _ := key.(int)
-			val, _ := value.(float64)
-			if k >= firstCopy {
+	if stwv.tf_transformation {
+		for i := 0; i < len(indexes); i++ {
+			index := indexes[i]
+			if index >= firstCopy {
+				val := _values[i]
 				val = math.Log(val + 1)
-				contained.Insert(k, val)
+				contained.Insert(index, val)
 			}
-		})
+		}
 	}
+	indexes = make([]int, contained.Len())
+	_values = make([]float64, contained.Len())
+	n = 0
+	contained.Do(func(key, value interface{}) {
+		//fmt.Println(key, " <-->", value)
+		index, _ := key.(int)
+		_value, _ := value.(float64)
+		indexes[n] = index
+		_values[n] = _value
+		n++
+	})
 	//IDF_freq transform
-	if stwv.transformation == IDF {
-		contained.Do(func(key, value interface{}) {
-			k, _ := key.(int)
-			val, _ := value.(float64)
-			if k >= firstCopy {
-				val = val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[k]))
-				contained.Insert(k, val)
+	if stwv.idf_transformation {
+		for i := 0; i < len(indexes); i++ {
+			index := indexes[i]
+			if index >= firstCopy {
+				val := _values[i]
+				val = val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[index]))
+				contained.Insert(index, val)
 			}
-		})
+		}
+		//		contained.Do(func(key, value interface{}) {
+		//			k, _ := key.(int)
+		//			val, _ := value.(float64)
+		//			if k >= firstCopy {
+		//				val = val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[k]))
+		//				contained.Insert(k, val)
+		//			}
+		//		})
 	}
 	//TF_IDF_freq transform
-	if stwv.transformation == TF_IDF {
-		contained.Do(func(key, value interface{}) {
-			k, _ := key.(int)
-			val, _ := value.(float64)
-			if k >= firstCopy {
-				val = (val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[k]))) * math.Log(val+1)
-				contained.Insert(k, val)
-			}
-		})
-	}
-	// contained.Do(func(key, value interface{}) {
-	// 	fmt.Println(key, " ", value)
-	// })
+	//	if stwv.transformation == TF_IDF {
+	//		for i:= 0; i < len(indexes); i++ {
+	//			index := indexes[i]
+	//			if index >= firstCopy {
+	//				val := _values[i]
+	//				val = (val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[index]))) * math.Log(val+1)
+	//				contained.Insert(index, val)
+	//			}
+	//		}
+	//		contained.Do(func(key, value interface{}) {
+	//			k, _ := key.(int)
+	//			val, _ := value.(float64)
+	//			if k >= firstCopy {
+	//				val = (val * math.Log(float64(stwv.numInstances)/float64(stwv.docsCounts[k]))) * math.Log(val+1)
+	//				contained.Insert(k, val)
+	//			}
+	//		})
+	//	}
+	//	 contained.Do(func(key, value interface{}) {
+	//	 	fmt.Println(key, " ", value)
+	//	 })
 	// Convert the set to structures needed to create a sparse instance.
 	values := make([]float64, contained.Len())
 	indices := make([]int, contained.Len())
 	i := 0
-	fmt.Println(contained.Len())
+	//fmt.Println(contained.Len())
 	contained.Do(func(key, value interface{}) {
 		index, _ := key.(int)
 		_value, _ := value.(float64)
@@ -392,11 +497,8 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 		i++
 	})
 	instSparse := data.NewInstance()
-	fmt.Println(indices)
-	fmt.Println(values)
 	for k, i := range indices {
 		if stwv.outputFormat.Attributes()[i].IsNominal() {
-			fmt.Println(stwv.outputFormat.Attributes()[i].Name(), values[i], i, k)
 			instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[int(values[k])])
 		} else if stwv.outputFormat.Attributes()[i].IsNominal() && !stwv.outputFormat.Attributes()[i].IsString() {
 			instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[i])
@@ -412,33 +514,9 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 	return firstCopy, instSparse
 }
 
-func sortArray(array []int) []int {
-	i, j, h := int(0), int(0), int(0)
-	N := len(array) - 1
-	for h = 1; h <= N/9; h = 3*h + 1 {
-	}
-
-	for ; h > 0; h /= 3 {
-		for i = h + 1; i <= N; i++ {
-			v := array[i]
-			j = i
-			for j > h && array[j-h] > v {
-				array[j] = array[j-h]
-				j -= h
-			}
-			array[j] = v
-		}
-	}
-	for _, v := range array {
-		fmt.Print(v, " ")
-	}
-	fmt.Println(array)
-	return array
-
-}
-
 func (stwv *StringToWordVector) normalizeInstance(inst *data.Instance, firstCopy int) {
-
+	//fmt.Println("firstcopy ", firstCopy)
+	//fmt.Println("avgdoclength ", stwv.avgDocLength)
 	docLength := float64(0)
 	if stwv.avgDocLength < 0 {
 		panic("Average document length not set.")
@@ -467,4 +545,32 @@ func (stwv *StringToWordVector) normalizeInstance(inst *data.Instance, firstCopy
 
 func (stwv *StringToWordVector) ConvertedInstances() data.Instances {
 	return stwv.outputFormat
+}
+
+func (stwv *StringToWordVector) SetTF_Transformation(set bool) {
+	stwv.tf_transformation = set
+}
+
+func (stwv *StringToWordVector) SetIDF_Transformation(set bool) {
+	stwv.idf_transformation = set
+}
+
+func (stwv *StringToWordVector) SetWordsToKeep(wordsToKeep int) {
+	stwv.wordsToKeep = wordsToKeep
+}
+
+func (stwv *StringToWordVector) SetOutputsCounts(oc bool) {
+	stwv.outputsCounts = oc
+}
+
+func (stwv *StringToWordVector) SetNormalize(norm bool) {
+	stwv.normalize = norm
+}
+
+func (stwv *StringToWordVector) SetPerClass(perClass bool) {
+	stwv.perClass = perClass
+}
+
+func (stwv *StringToWordVector) SetMinTermFreq(mtq rune) {
+	stwv.minTermFreq = mtq
 }
