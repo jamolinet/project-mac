@@ -1,1 +1,1 @@
-# proyect-mac
+# project-mac
