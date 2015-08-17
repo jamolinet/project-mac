@@ -289,7 +289,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 					index++
 					att := data.NewAttribute()
 					att.SetName(word)
-					att.SetType(data.STRING)
+					att.SetType(data.NUMERIC)
 					attributes = append(attributes, att)
 					//fmt.Println(index)
 				}

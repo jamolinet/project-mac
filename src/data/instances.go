@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -29,11 +30,30 @@ func NewInstances() Instances {
 	return inst
 }
 
+func NewInstancesWithInst(inst Instances, capacity int) Instances {
+	var i Instances
+	i.instances = make([]Instance, 0, capacity)
+	if inst.ClassIndex() >= 0 {
+		i.classIndex = inst.ClassIndex()
+	}
+	i.datasetName = inst.DatasetName()
+	i.attributes = inst.Attributes()
+	return i
+}
+
 func NewInstancesWithClassIndex(classIndex int) Instances {
 	var inst Instances
 	inst.instances = make([]Instance, 0)
 	inst.classIndex = classIndex
 	return inst
+}
+
+func (i *Instances) Attribute(idx int) *Attribute {
+	return &i.attributes[idx]
+}
+
+func (i *Instances) Instance(idx int) *Instance {
+	return &i.instances[idx]
 }
 
 //Parse file dataset
@@ -255,6 +275,54 @@ func (inst *Instances) readValue(attr *Attribute, direction int, val string, idx
 	//fmt.Println(attr.Values())
 }
 
+//Creates the training set for one fold of a cross-validation on the dataset
+func (i *Instances) TrainCV(numFolds, numFold, seed int) Instances {
+	var numInstForFold, first, offset int
+	var train Instances
+	if numFolds < 2 {
+		panic("The number of folds should be at least 2 or more.")
+	}
+	if numFolds > len(i.instances) {
+		panic("The number of folds can't be greater than number of instances")
+	}
+	numInstForFold = len(i.instances) / numFolds
+	if numFold < len(i.instances)%numFolds {
+		numInstForFold++
+		offset = numFold
+	} else {
+		offset = len(i.instances) % numFolds
+	}
+	train = NewInstancesWithInst(*i, len(i.instances)-numInstForFold)
+	first = numFold*(len(i.instances)/numFolds) + offset
+	i.copyInstances(0, &train, first)
+	i.copyInstances(first+numInstForFold, &train, len(i.instances)-first-numInstForFold)
+	train.Randomize(seed)
+	return train
+}
+
+//Copies instances from one set to the end of another one
+func (i *Instances) copyInstances(from int, dest *Instances, num int) {
+	for j := 0; j < num; j++ {
+		data := *i.Instance(from + j)
+		dest.instances = append(dest.instances, data)
+	}
+}
+
+//Shuffles the instances in the set so that they are ordered randomly
+func (i *Instances) Randomize(seed int) {
+	rand.Seed(int64(seed))
+	for j := range i.instances {
+		i.swap(j, rand.Intn(j+1))
+	}
+}
+
+//Swaps two instances in the set
+func (i *Instances) swap(j, k int) {
+	temp := i.instances[j]
+	i.instances[j] = i.instances[k]
+	i.instances[k] = temp
+}
+
 //Gets methods
 
 func (i *Instances) DatasetName() string {
@@ -289,4 +357,8 @@ func (i *Instances) SetAttributes(attrs []Attribute) {
 
 func (i *Instances) SetClassIndex(classIndex int) {
 	i.classIndex = classIndex
+}
+
+func (i *Instances) String() string {
+	return fmt.Sprintf("fdfsffsfdfsffs+++++++++++++ %s", i.DatasetName())
 }

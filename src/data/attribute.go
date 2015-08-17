@@ -1,7 +1,7 @@
 package data
 
 import (
-//	"fmt"
+	"fmt"
 )
 
 const (
@@ -63,6 +63,14 @@ func (a *Attribute) AddStringValue(val string) int {
 		a.valuesIndexes[val] = index
 		return index
 	}
+}
+
+func (a *Attribute) NumValues() int {
+	if !a.IsNominal() && !a.IsString() {
+		return 0
+	}
+	fmt.Println(len(a.values), "values")
+	return len(a.values)
 }
 
 func (a *Attribute) IsString() bool {

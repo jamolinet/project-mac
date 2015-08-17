@@ -42,16 +42,51 @@ func NewInstance() Instance {
 	inst.Input_Att = 0
 	inst.Output_Att = 1
 	inst.values = []string{}
-//	inst.nominalStringValues = make([][]string, 2)
-//	inst.intNominalStringValues = make([][]int, 2)
+	//	inst.nominalStringValues = make([][]string, 2)
+	//	inst.intNominalStringValues = make([][]int, 2)
 	inst.realValues = []float64{}
-//	inst.missingValues = make([][]bool, 2)
-//	inst.numInputAttrs = 0
-//	inst.numOutputAttrs = 0
+	//	inst.missingValues = make([][]bool, 2)
+	//	inst.numInputAttrs = 0
+	//	inst.numOutputAttrs = 0
 	inst.weight = 0.0
 	inst.indices = make([]int, 0)
 	inst.numAttributes = 0
 	return inst
+}
+
+func (i *Instance) Index(idx int) int {
+	return i.indices[idx]
+}
+
+func (i *Instance) ValueSparse(idx int) float64 {
+	return i.realValues[idx]
+}
+
+//for sparse instances only
+func (i *Instance) ClassValue(classIndex int) float64 {
+	if classIndex < 0 {
+		panic("Class is not set")
+	}
+	index := i.findIndex(classIndex)
+	if (index >= 0) && (i.indices[index]  == classIndex) {
+		return i.realValues[index]	
+	}
+	return 0.0
+}
+
+func (i *Instance) Value(idx int) float64 {
+	index := i.findIndex(idx)
+	if (index >= 0) && (i.indices[index]  == idx) {
+		return i.realValues[index]	
+	}
+	return 0.0
+}
+
+func (i *Instance) ClassMissing(classIndex int) bool {
+	if classIndex < 0 {
+		panic("Class is not set")
+	}
+	return i.IsMissingValue(classIndex)
 }
 
 func (i *Instance) IsMissingValue(idx int) bool {
@@ -61,6 +96,30 @@ func (i *Instance) IsMissingValue(idx int) bool {
 func (i *Instance) AddValues(value string) {
 	i.values = append(i.values, value)
 	//fmt.Println(i.values)
+}
+//for sparse instances only
+func (i *Instance) findIndex(index int) int {
+	min := 0
+	max := len(i.indices) - 1
+	if max == -1 {
+		return -1
+	}
+	//Binary search
+	for (i.indices[min] <= index) && (i.indices[max] >= index) {
+		current := (max + min) / 2
+		if i.indices[current] > index {
+			max = current - 1
+		} else if i.indices[current] < index {
+			min = current + 1
+		} else {
+			return current
+		}
+	}
+	if i.indices[max] < index {
+		return max
+	} else {
+		return min - 1
+	}
 }
 
 //func (i *Instance) AddValuesWithIndex(idx int, value string) {
@@ -122,6 +181,7 @@ func (i *Instance) Values() []string {
 func (i *Instance) RealValues() []float64 {
 	return i.realValues
 }
+
 //
 //func (i *Instance) MissingValues() [][]bool {
 //	return i.missingValues
@@ -164,6 +224,7 @@ func (i *Instance) SetValues(values []string) {
 func (i *Instance) SetRealValues(realValues []float64) {
 	i.realValues = realValues
 }
+
 //
 //func (i *Instance) SetMissingValues(missing [][]bool) {
 //	i.missingValues = missing
