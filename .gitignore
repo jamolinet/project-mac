@@ -1,0 +1,4 @@
+bin/main.exe
+pkg/*.*
+*.arff
+*.a
