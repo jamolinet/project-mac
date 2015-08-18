@@ -63,4 +63,5 @@ func main() {
 	//ig.BuildEvaluator(processed)
 	i := utils.SortFloat([]float64{0, 0, 0, 0, 0, 0, 0.8904916402194916, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7793498372920848, 0, 0, 0, 0, 0.7793498372920848})
 	fmt.Println(i)
+	data.ExportToArffFileSparse(processed, "", "")
 }
