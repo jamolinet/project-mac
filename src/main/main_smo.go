@@ -26,10 +26,9 @@ func main() {
 	stwv.SetIDF_Transformation(true)
 	stwv.SetTF_Transformation(true)
 	stwv.SetWordsToKeep(15)
-	stwv.SetPerClass(false)
+	stwv.SetPerClass(true)
 	stwv.SetNormalize(false)
 	processed := stwv.Exec()
-	processed = stwv.Exec()
 	processed.ClassIndex()
 	//	for _, attr := range processed.Attributes() {
 	//		fmt.Println(attr.Name(), attr.Type())
