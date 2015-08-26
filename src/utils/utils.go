@@ -1,7 +1,7 @@
 package utils
 
 import (
-//	"fmt"
+	//	"fmt"
 	"math"
 )
 
@@ -31,10 +31,88 @@ func Eq(a float64, b float64) bool {
 	return (a == b) || (a-b < SMALL) && (b-a < SMALL)
 }
 
-//Sorts a given array of doubles in ascending order and returns an array of
-//integers with the positions of the elements of the original array in the
-//sorted array. SEE: This sort is not stable anymore look for better implementations
+// Sorts a given array of integers in ascending order and returns an array of
+// integers with the positions of the elements of the original array in the
+// sorted array. The sort is stable. (Equal elements remain in their original
+//  order.)
+
+func SortInt(array []int) []int {
+	//Always reset global variable index
+	index = nil
+
+	index = make([]int, len(array))
+	newIndex := make([]int, len(array))
+	var helpIndex []int
+	var numEqual int
+
+	for i := range array {
+		index[i] = i
+	}
+	quickSortINT(array, index, 0, len(array)-1)
+
+	//Make sort stable
+	i := 0
+	for i < len(index) {
+		numEqual = 1
+		for j := i + 1; j < len(index) && (array[index[i]] == array[index[j]]); j++ {
+			numEqual++
+		}
+		if numEqual > 1 {
+			helpIndex = make([]int, numEqual)
+			for j := range helpIndex {
+				helpIndex[j] = i + j
+			}
+			quickSortINT(index, helpIndex, 0, numEqual-1)
+			for j := 0; j < numEqual; j++ {
+				newIndex[i+j] = index[helpIndex[j]]
+			}
+			i += numEqual
+		} else {
+			newIndex[i] = index[i]
+			i++
+		}
+	}
+	return newIndex
+}
+
+func quickSortINT(array, index []int, left, right int) {
+	if left < right {
+		middle := partitionINT(array, index, left, right)
+		quickSortINT(array, index, left, middle)
+		quickSortINT(array, index, middle+1, right)
+	}
+}
+
+func partitionINT(array, index []int, l, r int) int {
+	pivot := float64(array[index[(l+r)/2]])
+	var help int
+	for l < r {
+		for array[index[l]] < int(pivot) && l < r {
+			l++
+		}
+		for array[index[r]] > int(pivot) && l < r {
+			r--
+		}
+		if l < r {
+			help = index[l]
+			index[l] = index[r]
+			index[r] = help
+			l++
+			r--
+		}
+	}
+	if l == r && array[index[r]] > int(pivot) {
+		r--
+	}
+	return r
+}
+
+// Sorts a given array of doubles in ascending order and returns an array of
+// integers with the positions of the elements of the original array in the
+// sorted array. SEE: This sort is not stable anymore look for better implementations
 func SortFloat(array []float64) []int {
+	//Always reset global variable index
+	index = nil
 	initialIndex(len(array))
 	//fmt.Println(len(index), "index")
 	if len(array) > 1 {
@@ -44,7 +122,7 @@ func SortFloat(array []float64) []int {
 	return index
 }
 
-//Initial index, filled with values from 0 to size - 1.
+// Initial index, filled with values from 0 to size - 1.
 func initialIndex(size int) {
 	index = make([]int, size)
 	for i := range index {
@@ -52,7 +130,7 @@ func initialIndex(size int) {
 	}
 }
 
-//Replaces all "missing values" in the given array of float64 values with math.MaxFloat64
+// Replaces all "missing values" in the given array of float64 values with math.MaxFloat64
 func replaceMissingValueWithMaxFloat64(array []float64) []float64 {
 	//fmt.Println(array, "array array")
 	for i := range array {
@@ -66,17 +144,8 @@ func replaceMissingValueWithMaxFloat64(array []float64) []float64 {
 /**
  * Implements quicksort with median-of-three method and explicit sort for
  * problems of size three or less.
- *
- * @param array the array of doubles to be sorted
- * @param index the index into the array of doubles
- * @param left the first index of the subset to be sorted
- * @param right the last index of the subset to be sorted
+
  */
-// @ requires 0 <= first && first <= right && right < array.length;
-// @ requires (\forall int i; 0 <= i && i < index.length; 0 <= index[i] &&
-// index[i] < array.length);
-// @ requires array != index;
-// assignable index;
 func quickSort(array []float64 /*index []int,*/, left, right int) {
 	diff := right - left
 	switch diff {
@@ -155,4 +224,16 @@ func partition(array []float64 /*index *[]int,*/, l, r int, pivot float64) int {
 		swap(l, r)
 	}
 	return 0
+}
+
+func MaxIndex(floats []float64) int {
+	maximmun, maxIndex := 0.0, 0
+
+	for i, d := range floats {
+		if i == 0 || d > maximmun {
+			maxIndex = i
+			maximmun = d
+		}
+	}
+	return maxIndex
 }

@@ -54,6 +54,40 @@ func NewInstance() Instance {
 	return inst
 }
 
+func NewSparseInstance(weight float64, vals []float64, atts []Attribute) Instance {
+	var inst Instance
+	inst.MissingValue = math.NaN()
+	inst.Input_Att = 0
+	inst.Output_Att = 1
+	inst.weight = weight
+
+	tmpValues := make([]float64, 0)
+	tmpInd := make([]int, 0)
+	for i, v := range vals {
+		if v != 0 {
+			tmpValues = append(tmpValues, v)
+			tmpInd = append(tmpInd, i)
+		}
+	}
+	for k, j := range tmpInd {
+		if atts[j].IsNominal() {
+			if math.IsNaN(tmpValues[k]) {
+				inst.AddValues("?")
+			} else {
+				inst.AddValues(atts[j].Values()[int(tmpValues[k])])
+			}
+		} else if atts[j].IsNominal() && !atts[j].IsString() {
+			inst.AddValues(atts[j].Values()[j])
+		} else {
+			inst.AddValues(atts[j].Name())
+		}
+	}
+	inst.realValues = tmpValues
+	inst.indices = tmpInd
+	inst.numAttributes = len(vals)
+	return inst
+}
+
 func (i *Instance) Index(idx int) int {
 	return i.indices[idx]
 }
@@ -68,16 +102,16 @@ func (i *Instance) ClassValue(classIndex int) float64 {
 		panic("Class is not set")
 	}
 	index := i.findIndex(classIndex)
-	if (index >= 0) && (i.indices[index]  == classIndex) {
-		return i.realValues[index]	
+	if (index >= 0) && (i.indices[index] == classIndex) {
+		return i.realValues[index]
 	}
 	return 0.0
 }
 
 func (i *Instance) Value(idx int) float64 {
 	index := i.findIndex(idx)
-	if (index >= 0) && (i.indices[index]  == idx) {
-		return i.realValues[index]	
+	if (index >= 0) && (i.indices[index] == idx) {
+		return i.realValues[index]
 	}
 	return 0.0
 }
@@ -90,13 +124,14 @@ func (i *Instance) ClassMissing(classIndex int) bool {
 }
 
 func (i *Instance) IsMissingValue(idx int) bool {
-	return i.realValues[idx] == math.NaN()
+	return math.IsNaN(i.Value(idx))
 }
 
 func (i *Instance) AddValues(value string) {
 	i.values = append(i.values, value)
 	//fmt.Println(i.values)
 }
+
 //for sparse instances only
 func (i *Instance) findIndex(index int) int {
 	min := 0
@@ -120,6 +155,31 @@ func (i *Instance) findIndex(index int) int {
 	} else {
 		return min - 1
 	}
+}
+
+func (i *Instance) SparseInstance(weight float64, values []float64, indices []int, maxValues int, atts []Attribute) {
+
+	for j := 0; j < len(values); j++ {
+		if values[j] != 0 {
+			i.realValues = append(i.realValues, values[j])
+			i.indices = append(i.indices, indices[j])
+		}
+	}
+	for k, j := range indices {
+		if atts[j].IsNominal() {
+			if math.IsNaN(values[k]) {
+				i.AddValues("?")
+			} else {
+				i.AddValues(atts[j].Values()[int(values[k])])
+			}
+		} else if atts[j].IsNominal() && !atts[j].IsString() {
+			i.AddValues(atts[j].Values()[j])
+		} else {
+			i.AddValues(atts[j].Name())
+		}
+	}
+	i.SetWeight(weight)
+	i.numAttributes = maxValues
 }
 
 //func (i *Instance) AddValuesWithIndex(idx int, value string) {

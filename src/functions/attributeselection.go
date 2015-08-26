@@ -4,7 +4,7 @@ import (
 	"github.com/project-mac/src/data"
 	"math"
 	//	"utils"
-	"fmt"
+	//"fmt"
 )
 
 type AttributeSelection struct {
@@ -49,13 +49,13 @@ func (as *AttributeSelection) StartSelection(instances data.Instances) {
 		panic("No selected attributes")
 	}
 	//Set output
-	fmt.Println(as.selectedAttributes, "as.selectedAttributes")
+	//fmt.Println(as.selectedAttributes, "as.selectedAttributes")
 	as.output = data.NewInstances()
 	attributes := make([]data.Attribute, 0)
 	for i := range as.selectedAttributes {
 		attributes = append(attributes, *as.input.Attribute(as.selectedAttributes[i]))
 	}
-	fmt.Println(attributes, "attributes")
+	//fmt.Println(attributes, "attributes")
 	as.output.SetDatasetName(as.input.DatasetName())
 	as.output.SetAttributes(attributes)
 	if as.hasClass {
@@ -72,13 +72,13 @@ func (as *AttributeSelection) StartSelection(instances data.Instances) {
 //Convert a single instance over
 func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance {
 	newVasl := make([]float64, 0, len(as.output.Attributes()))
-	for i, current := range as.selectedAttributes {
-		fmt.Println(current, i, inst.RealValues())
+	for _, current := range as.selectedAttributes {
+		//fmt.Println(current, i, inst.RealValues())
 		newVasl =  append(newVasl,inst.Value(current))
 		//newVasl[i] = inst.Value(current)
 		//fmt.Println(newVasl[i], "newVasl[i]")
 	}
-	fmt.Println("----------------------------------------------")
+	//fmt.Println("----------------------------------------------")
 	newInst := data.NewInstance()
 //	newInst.SetNumAttributes(len(newVasl))
 	values_ := make([]float64, len(newVasl))
@@ -133,7 +133,7 @@ func (as *AttributeSelection) SelectAttributes(data_ data.Instances) []int {
 	as.attributeRanking = as.search.rankedAttributes()
 	// retrieve the number of attributes to retain
 	as.numToSelect = as.search.GetCalculatedNumToSelect()
-	fmt.Println(as.numToSelect, "as.numToSelect")
+	//fmt.Println(as.numToSelect, "as.numToSelect")
 	// determine fieldwidth for merit
 	f_p, w_p := 0, 0
 	for i := 0; i < as.numToSelect; i++ {
@@ -166,7 +166,7 @@ func (as *AttributeSelection) SelectAttributes(data_ data.Instances) []int {
 	for i := 0; i < as.numToSelect; i++ {
 		as.selectedAttributeSet[i] = int(as.attributeRanking[i][0])
 	}
-	fmt.Println(as.selectedAttributeSet, "as.selectedAttributeSet")
+	//fmt.Println(as.selectedAttributeSet, "as.selectedAttributeSet")
 	if as.doXval {
 		as.CrossValidateAttribute()
 	}
@@ -237,71 +237,6 @@ func (as *AttributeSelection) SetEvaluator(eval InfoGain) {
 
 func (as *AttributeSelection) SetSearchMethod(method Ranker) {
 	as.search = method
-}
-
-type Remove struct {
-	selectedCols       []int //the selected columns
-	selectedAttributes []int //the selected attributes' indexes, the ones we will keep
-	invertSel          bool  //whether to use invert selection or not, the selected attributes will be kept if true
-	outputFormat       data.Instances
-}
-
-func NewRemove() Remove {
-	var r Remove
-	r.invertSel = true
-	return r
-}
-
-func (r *Remove) SetInputFormat(instInfo data.Instances) {
-	r.getSelectedAttributes(len(instInfo.Attributes()))
-	attributes := make([]data.Attribute, 0)
-	outputClass := -1
-	for _, current := range r.selectedAttributes {
-		if instInfo.ClassIndex() == current {
-			outputClass = len(attributes)
-		}
-		keep := *instInfo.Attribute(current)
-		fmt.Println(keep.Name())
-		attributes = append(attributes, keep)
-	}
-	fmt.Println(len(attributes), "attributes", "\n", outputClass, "outputClass")
-	r.outputFormat = data.NewInstancesWithClassIndex(outputClass)
-	r.outputFormat.SetAttributes(attributes)
-}
-
-func (r *Remove) SetSelectedColumns(cols []int) {
-	r.selectedCols = cols
-}
-
-func (r *Remove) SetInvertSelection(flag bool) {
-	r.invertSel = flag
-}
-
-func (r *Remove) getSelectedAttributes(numAttributes int) {
-	if r.invertSel {
-		r.selectedAttributes = r.selectedCols
-	} else {
-		//a very costly implementation, **must be changed in the future**
-		for j := range r.selectedCols {
-			for i := 0; i < numAttributes; i++ {
-				if j != i {
-					contains := func() bool {
-						for _, k := range r.selectedAttributes {
-							if i == k {
-								return true
-							}
-						}
-						return false
-					}
-					if !contains() {
-						r.selectedAttributes = append(r.selectedAttributes, i)
-					}
-				} else {
-					break
-				}
-			}
-		}
-	}
 }
 
 func (as *AttributeSelection) Output() data.Instances {

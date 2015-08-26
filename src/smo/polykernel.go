@@ -91,6 +91,7 @@ func (pk *PolyKernel) Eval(id1, id2 int, inst1 data.Instance) float64 {
 	// we can only cache if we know the indexes and caching is not
 	// disbled (m_cacheSize == -1)
 	if id1 >= 0 && pk.cacheSize != -1 {
+		//Use full cache?
 		if pk.cacheSize == 0 {
 			if pk.kernelMatrix == nil {
 				pk.kernelMatrix = make([][]float64, len(pk.data.Instances()))
@@ -149,8 +150,8 @@ func (pk *PolyKernel) Eval(id1, id2 int, inst1 data.Instance) float64 {
 	if key != -1 && pk.cacheSize != -1 {
 		// move all cache slots forward one array index
 		// to make room for the new entry
-		copy(pk.keys[location+1:], pk.keys[location:pk.cacheSlots])
-		copy(pk.storage[location+1:], pk.storage[location:pk.cacheSlots])
+		copy(pk.keys[location+1:], pk.keys[location:pk.cacheSlots]) //Later see if is ok if not then add +1
+		copy(pk.storage[location+1:], pk.storage[location:pk.cacheSlots])//Later see if is ok if not then add +1
 		pk.storage[location] = result
 		pk.keys[location] = key + 1
 	}

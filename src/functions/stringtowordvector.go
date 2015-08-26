@@ -1,12 +1,13 @@
 package functions
 
 import (
-	"github.com/project-mac/src/data"
 	"fmt"
-	"math"
+	"github.com/project-mac/src/data"
 	"github.com/project-mac/src/omap"
+	"math"
 	"sort"
 	"strings"
+	//	"strconv"
 )
 
 const (
@@ -94,6 +95,7 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 		fv := make([]data.Instance, 0)
 		firstCopy := 0
 		for i := 0; i < stwv.numInstances; i++ {
+			//fmt.Println(stwv.inputFormat.Instance(i).Values(), "trtr")
 			firstcopy, v := stwv.convertInstancewoDocNorm(stwv.inputFormat.Instances()[i])
 			fv = append(fv, v)
 			firstCopy = firstcopy
@@ -109,7 +111,7 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 					docLength += inst.RealValues()[j] * inst.RealValues()[j]
 				}
 			}
-			fmt.Println("docLength ", docLength)
+			//fmt.Println("docLength ", docLength)
 			stwv.avgDocLength += math.Sqrt(docLength)
 		}
 		stwv.avgDocLength /= float64(stwv.numInstances)
@@ -124,7 +126,7 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 		fv := make([]data.Instance, 0)
 		firstCopy := 0
 		for i := 0; i < stwv.numInstances; i++ {
-			firstcopy, v := stwv.convertInstancewoDocNorm(stwv.inputFormat.Instances()[i])
+			firstcopy, v := stwv.convertInstancewoDocNorm(*stwv.inputFormat.Instance(i))
 			fv = append(fv, v)
 			firstCopy = firstcopy
 		}
@@ -143,6 +145,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	/* TODO: see if use a stopwords list*/
 	fmt.Println("Determing dictionary!")
 	classInd := inst.ClassIndex()
+	//fmt.Println(classInd, "classInd", inst.NumAttributes())
 	values := 1
 	if stwv.perClass && (classInd != -1) {
 		values = len(inst.Attributes()[classInd].Values())
@@ -156,6 +159,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	for i, instance := range inst.Instances() {
 		vInd := int(0)
 		if stwv.perClass && (classInd != -1) {
+			//fmt.Println(len(instance.RealValues()), i,"len", instance.Values())
 			vInd = int(instance.RealValues()[classInd])
 		}
 		//Iterate through all relevant string attributes of the current instance
@@ -199,7 +203,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 			} else {
 				panic("Check the code, there must be a word in the dictionary")
 			}
-			fmt.Println(dicA[vInd].Find(word))
+			//fmt.Println(dicA[vInd].Find(word))
 		}
 
 		if pruneRate > 0 {
@@ -248,7 +252,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 		//			pos++
 		//		}
 		sort.Ints(array)
-		fmt.Println(array)
+		//fmt.Println(array)
 		if len(array) < stwv.wordsToKeep {
 			// if there aren't enough words, set the threshold to
 			// minFreq
@@ -263,7 +267,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	// Convert the dictionary into an attribute index
 	// and create one attribute per word
 	attributes := make([]data.Attribute, 0, totalSize+len(inst.Attributes()))
-	fmt.Println(totalSize+len(inst.Attributes()), "len(attributes)")
+	//fmt.Println(totalSize+len(inst.Attributes()), "len(attributes)")
 	// Add the non-converted attributes
 	classIndex := int(-1)
 	for i, attr := range stwv.inputFormat.Attributes() {
@@ -339,7 +343,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	//		stwv.docsCounts[int(idx)] = docsCount
 	//		//idx++
 	//	}
-	fmt.Println("doc: ", stwv.docsCounts)
+	//fmt.Println("doc: ", stwv.docsCounts)
 	stwv.dictionary = newDic
 	////fmt.Println("numInst", len(inst.Instances()))
 	stwv.numInstances = len(inst.Instances())
@@ -353,9 +357,9 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 	// Convert the instance into a sorted set of indexes
 	contained := omap.NewIntKeyed()
 	mapKeys := make([]float64, 0)
+
 	// Copy all non-converted attributes from input to output
 	firstCopy := 0
-
 	for i, _ := range stwv.inputFormat.Attributes() {
 		//fmt.Println("input attrs: ", i)
 		if !stwv.inputFormat.Attributes()[i].IsString() {
@@ -496,10 +500,16 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 		indices[i] = index
 		i++
 	})
+	//fmt.Println(stwv.outputFormat)
 	instSparse := data.NewInstance()
 	for k, i := range indices {
-		if stwv.outputFormat.Attributes()[i].IsNominal() {
-			instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[int(values[k])])
+		if stwv.outputFormat.Attribute(i).IsNominal() {
+			if math.IsNaN(values[k]) {
+				instSparse.AddValues("?")
+			} else {
+				instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[int(values[k])])
+			}
+			//instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[int(values[k])])
 		} else if stwv.outputFormat.Attributes()[i].IsNominal() && !stwv.outputFormat.Attributes()[i].IsString() {
 			instSparse.AddValues(stwv.outputFormat.Attributes()[i].Values()[i])
 		} else {

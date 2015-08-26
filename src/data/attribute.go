@@ -7,12 +7,13 @@ import (
 const (
 	NOMINAL = 0
 	INTEGER = 1
-	REAL = 2
+	REAL    = 2
 	NUMERIC = 3
-	STRING = 4
-	INPUT = 5
-	OUTPUT = 6
+	STRING  = 4
+	INPUT   = 5
+	OUTPUT  = 6
 )
+
 //it can be implemented as constants
 type Attribute struct {
 	//Constants
@@ -46,7 +47,7 @@ func NewAttribute() Attribute {
 	attr.Arff_Numeric = "numeric"
 	attr.Arff_Real = "real"
 	attr.Arff_String = "string"
-	attr.valuesIndexes = make(map[string]int,0)
+	attr.valuesIndexes = make(map[string]int, 0)
 	attr.values = make([]string, 0)
 	return attr
 }
@@ -73,6 +74,14 @@ func (a *Attribute) NumValues() int {
 	return len(a.values)
 }
 
+func (a *Attribute) Value(valindex int) string {
+	if !a.IsNominal() && !a.IsString() {
+		return ""
+	} else {
+		return a.values[valindex]
+	}
+}
+
 func (a *Attribute) IsString() bool {
 	return a.attr_type == STRING
 }
@@ -81,9 +90,13 @@ func (a *Attribute) IsNominal() bool {
 	return a.attr_type == NOMINAL
 }
 
+func (a *Attribute) IsNumeric() bool {
+	return a.attr_type == NUMERIC
+}
+
 //Sets methods
 
-func(a *Attribute) SetIndex(index int) {
+func (a *Attribute) SetIndex(index int) {
 	a.index = index
 }
 

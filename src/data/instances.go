@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"github.com/project-mac/src/utils"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -58,9 +60,58 @@ func (i *Instances) Instance(idx int) *Instance {
 
 //Parse file dataset
 func (inst *Instances) ParseFile(filepath string) error {
-	inst.processHeader(filepath)
-	inst.parseInstances(filepath)
+	err := inst.processHeader(filepath)
+	if err != nil {
+		return err
+	}
+	err = inst.parseInstances(filepath)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+// Calculates summary statistics on the values that appear in this set of instances for a specified attribute
+func (i *Instances) AttributeStats(index int) AttributeStats {
+	result := NewAttributeStats()
+	if i.Attribute(index).IsNominal() {
+		result.NominalCounts = make([]int, i.Attribute(index).NumValues())
+	}
+	if i.Attribute(index).IsNumeric() {
+		result.numericStats = NewStats()
+	}
+	result.TotalCount = i.NumInstances()
+
+	attVals := i.attributeToDoubleArray(index)
+	sorted := utils.SortFloat(attVals)
+	currentCount := 0
+	prev := math.NaN() //for the moment is the missing value
+	for j := 0; j < i.NumInstances(); j++ {
+		current := *i.Instance(sorted[j])
+		if current.IsMissingValue(index) {
+			result.MissingCount = i.NumInstances() - j
+			break
+		}
+		if current.RealValues()[index] == prev {
+			currentCount++
+		} else {
+			result.AddDistinct(prev, currentCount)
+			currentCount = 1
+			prev = current.RealValues()[index]
+		}
+	}
+	result.AddDistinct(prev, currentCount)
+	result.DistinctCount-- // So we don't count "missing" as a value
+	return result
+}
+
+// Gets the value of all instances in this dataset for a particular attribute
+func (i *Instances) attributeToDoubleArray(index int) []float64 {
+	result := make([]float64, i.NumInstances())
+	for j := range result {
+		result[j] = i.instances[j].Value(index)
+	}
+	return result
 }
 
 //Process att
@@ -220,19 +271,25 @@ func (inst *Instances) parseInstances(filepath string) error {
 		if err != nil {
 			panic(fmt.Errorf("Malformed instance in line %s", line))
 		}
-		for idx, val := range attVals {
+		if len(attVals) <= inst.ClassIndex() {
+			panic("The number of attributes in an instance can't be less than the class index number")
+		}
+		for x:= 0; x < len(attVals); x++ {
+		//for idx, val := range attVals {
 			//fmt.Printf("Index: %d, Value: %s", idx, val)
 			//fmt.Println()
-			attr := &inst.attributes[idx]
+			//attr := &inst.attributes[idx]
+			attr := &inst.attributes[x]
 			direction := attr.Direction()
 			//instance.AddValues(val)
-			inst.readValue(attr, direction, val, idx, &instance)
+			//inst.readValue(attr, direction, val, idx, &instance)
+			inst.readValue(attr, direction, attVals[x], x, &instance)
 		}
 		instance.SetWeight(1.0)
 		instance.SetNumAttributes(len(instance.Values()))
 		inst.instances = append(inst.instances, instance)
-		//fmt.Println(line)
-		fmt.Println(instance.NumAttributes())
+		//fmt.Println(len(instance.RealValues()))
+		//fmt.Println(instance.NumAttributes())
 	}
 	return nil
 }
@@ -240,17 +297,17 @@ func (inst *Instances) parseInstances(filepath string) error {
 func (inst *Instances) readValue(attr *Attribute, direction int, val string, idx int, instance *Instance) {
 	if strings.EqualFold(val, "<null>") || strings.EqualFold(val, "?") {
 
-		switch attr.Type() {
-		case NUMERIC:
+		//switch attr.Type() {
+		//case NUMERIC:
 			instance.AddValues(val)
 			instance.AddRealValues(instance.MissingValue)
-			break
-		case NOMINAL:
-		case STRING:
-			instance.AddValues(val)
-			instance.AddRealValues(instance.MissingValue)
-			break
-		}
+		//	break
+		//case NOMINAL:
+		//case STRING:
+		//	instance.AddValues(val)
+		//	instance.AddRealValues(instance.MissingValue)
+		//	break
+		//}
 	} else {
 		switch attr.Type() {
 		case NUMERIC:
@@ -321,6 +378,43 @@ func (i *Instances) swap(j, k int) {
 	temp := i.instances[j]
 	i.instances[j] = i.instances[k]
 	i.instances[k] = temp
+}
+
+func (i *Instances) SumOfWeights() float64 {
+	sum := 0.0
+	for _, inst := range i.Instances() {
+		sum += inst.weight
+	}
+	return sum
+}
+
+func (i *Instances) DeleteWithMissing(attIndex int) {
+	newInstances := make([]Instance, 0)
+	for j := 0; j < len(i.Instances()); j++ {
+		if !i.Instance(j).IsMissingValue(attIndex) {
+			newInstances = append(newInstances, i.instances[j])
+		}
+	}
+	i.instances = newInstances
+}
+
+func (i *Instances) DeleteWithMissingClass() {
+	if i.classIndex < 0 {
+		panic("Class index is negative (not set)!")
+	}
+	i.DeleteWithMissing(i.classIndex)
+}
+
+func (i *Instances) Add(inst Instance) {
+	i.instances = append(i.instances, inst)
+}
+
+func (i *Instances) NumInstances() int {
+	return len(i.Instances())
+}
+
+func (i *Instances) NumAttributes() int {
+	return len(i.Attributes())
 }
 
 //Gets methods
