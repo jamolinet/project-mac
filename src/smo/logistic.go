@@ -3,7 +3,7 @@ package smo
 import (
 	"github.com/project-mac/src/data"
 	"github.com/project-mac/src/functions"
-	"github.com/gonum/matrix/mat64"
+	//"github.com/gonum/matrix/mat64"
 )
 
 type Logistic struct {
