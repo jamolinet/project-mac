@@ -35,7 +35,7 @@ func (m *ReplaceMissingValues) Exec(instances data.Instances) {
 }
 
 // Convert a single instance over.
-func (m *ReplaceMissingValues) convertInstance(instance data.Instance) {
+func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Instance {
 	inst := data.NewInstance()
 	//Instances for the moment are always SparseInstances
 	vals := make([]float64, len(instance.RealValues()))
@@ -59,6 +59,7 @@ func (m *ReplaceMissingValues) convertInstance(instance data.Instance) {
 		inst.SparseInstance(instance.Weight(), vals, indices,len(m.output.Attributes()),m.output.Attributes())
 	}
 	m.output.Add(inst)
+	return inst
 }
 func (m *ReplaceMissingValues) BatchFinished() {
 	if m.modesAndMeans == nil {
@@ -189,4 +190,10 @@ func (m *ReplaceMissingValues) SetOutputFormat(insts data.Instances) {
 // Returns the output
 func (m *ReplaceMissingValues) Output() data.Instances {
 	return m.output
+}
+
+// This method does the function of calling in weka convertInstance(Instance) and then output()
+// due in this implementation does not exists the m_OutputQueue value
+func (m *ReplaceMissingValues) ConvertAndReturn(instance data.Instance) data.Instance {
+	return m.convertInstance(instance)
 }

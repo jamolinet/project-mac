@@ -417,6 +417,25 @@ func (i *Instances) NumAttributes() int {
 	return len(i.Attributes())
 }
 
+func (i *Instances) NumClasses() int {
+	if i.classIndex < 0 {
+		panic("Class index is negative (not set)!")
+	}
+	att := i.ClassAttribute()
+	if !att.IsNominal() {
+		return 1
+	} else {
+		return att.NumValues()
+	}
+}
+
+func (i *Instances) ClassAttribute() Attribute {
+	if i.classIndex < 0 {
+		panic("Class index is negative (not set)!")
+	}
+	return i.attributes[i.classIndex]
+}
+
 //Gets methods
 
 func (i *Instances) DatasetName() string {

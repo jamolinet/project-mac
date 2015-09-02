@@ -62,11 +62,11 @@ func (m *NominalToBinary) Exec(instances data.Instances) error {
 	}
 	return nil
 }
-func (m *NominalToBinary) convertInstance(instance data.Instance) {
+func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance {
 	
 	if !m.needToTransform {
 		m.output.Add(instance)
-		return
+		return instance
 	}
 	
 	vals := make([]float64, m.output.NumAttributes())
@@ -128,6 +128,7 @@ func (m *NominalToBinary) convertInstance(instance data.Instance) {
 	}
 	inst.SetNumAttributes(len(values))
 	m.output.Add(inst)
+	return inst
 }
 
 func (m *NominalToBinary) SetInputFormat(data data.Instances) {
@@ -286,4 +287,14 @@ func (m *NominalToBinary) getSelectedAttributes(numAttributes int) {
 		}
 	}
 	m.columns =  m.selectedAttributes
+}
+
+func (m *NominalToBinary) Output() data.Instances {
+	return m.output
+}
+
+// This method does the function of calling in weka convertInstance(Instance) and then output()
+// due in this implementation does not exists the m_OutputQueue value
+func (m *NominalToBinary) ConvertAndReturn(instance data.Instance) data.Instance {
+	return m.convertInstance(instance)
 }

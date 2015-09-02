@@ -5,7 +5,7 @@ import (
 )
 
 type Remove struct {
-	notNil              bool
+	notNil             bool
 	selectedCols       []int //the selected columns
 	selectedAttributes []int //the selected attributes' indexes, the ones we will keep
 	invertSel          bool  //whether to use invert selection or not, the selected attributes will be kept if true
@@ -28,7 +28,7 @@ func (r *Remove) Exec(instances data.Instances) {
 	r.SetInputFormat(instances)
 	for _, instance := range instances.Instances() {
 		if r.outputFormat.NumAttributes() == 0 {
-			return
+			continue
 		}
 		vals := make([]float64, r.outputFormat.NumAttributes())
 		for i, current := range r.selectedAttributes {
@@ -39,7 +39,6 @@ func (r *Remove) Exec(instances data.Instances) {
 		r.outputFormat.Add(inst)
 	}
 }
-
 
 // Sets the format of the input and output instances
 func (r *Remove) SetInputFormat(instInfo data.Instances) {
@@ -93,4 +92,20 @@ func (r *Remove) getSelectedAttributes(numAttributes int) {
 			}
 		}
 	}
+}
+
+// This method does the function of calling in weka convertInstance(Instance) and then output()
+// due in this implementation does not exists the m_OutputQueue value
+func (r *Remove) ConvertAndReturn(instance data.Instance) data.Instance {
+	if r.outputFormat.NumAttributes() == 0 {
+		//nothing is done
+		return instance
+	}
+	vals := make([]float64, r.outputFormat.NumAttributes())
+	for i, current := range r.selectedAttributes {
+		vals[i] = instance.Value(current)
+	}
+	//Instance is always sparse
+	inst := data.NewSparseInstance(instance.Weight(), vals, r.outputFormat.Attributes())
+	return inst
 }

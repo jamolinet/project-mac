@@ -2,6 +2,7 @@ package smo
 
 import (
 	"github.com/project-mac/src/data"
+	"github.com/project-mac/src/functions"
 	"math"
 )
 
@@ -33,6 +34,14 @@ var filterType = FILTER_NORMALIZE
 
 /** Remains other attributes to declare*/
 /**********/ /////
+//The filter used to make attributes numeric
+var nominalToBinary functions.NominalToBinary
+
+//The filter used to standardize/normalize all values
+
+//The filter used to get rid of missing values
+var missing functions.ReplaceMissingValues
+
 //The class index from the training data
 var classIndex = -1
 
@@ -639,6 +648,7 @@ func (bsmo *BinarySMO) SetKernel(value PolyKernel) {
 
 func (bsmo *BinarySMO) Kernel() PolyKernel {
 	return bsmo.kernel
+
 }
 
 //-------------------------------------------------

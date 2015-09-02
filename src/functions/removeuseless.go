@@ -126,3 +126,11 @@ func (m *RemoveUseless) SetOutputFormat(insts data.Instances) {
 	m.output.SetClassIndex(m.input.ClassIndex())
 	m.output.SetAttributes(atts)
 }
+
+func (r *RemoveUseless) Output() data.Instances {
+	return r.output
+}
+
+func (r *RemoveUseless) ConvertAndReturn(instance data.Instance) data.Instance {
+	return r.removeFilter.ConvertAndReturn(instance)
+}

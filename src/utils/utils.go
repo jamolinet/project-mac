@@ -237,3 +237,18 @@ func MaxIndex(floats []float64) int {
 	}
 	return maxIndex
 }
+
+func Normalize(doubles *[]float64, sum float64) {
+	d := *doubles
+	if math.IsNaN(sum) {
+		panic("Can't normalize array. Sum is NaN.")
+	}
+	if sum == 0 {
+		panic("Can't normalize array. Sum is zero.")
+	}
+	for i:= range d {
+		d[i] /= sum
+	}
+	*doubles = d
+}
+
