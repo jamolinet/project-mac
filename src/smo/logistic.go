@@ -52,7 +52,7 @@ func (m *Logistic) BuildClassifier(train data.Instances) {
 	m.replaceMissingValues = functions.NewReplacingMissingValues()
 	m.replaceMissingValues.SetInputFormat(train)
 	m.replaceMissingValues.Exec(train)
-	train = m.replaceMissingValues.Output()
+	train = m.replaceMissingValues.OutputAll()
 
 	//Remove useless attributes
 	m.attFilter = functions.NewRemoveUseless()
@@ -65,7 +65,7 @@ func (m *Logistic) BuildClassifier(train data.Instances) {
 	m.nominalToBinary.SetRange("all")
 	m.nominalToBinary.SetInputFormat(train)
 	m.nominalToBinary.Exec(train)
-	train = m.nominalToBinary.Output()
+	train = m.nominalToBinary.OutputAll()
 
 	// Save the structure for printing the model
 	m.structure = data.NewInstancesWithInst(train, 0)
@@ -215,7 +215,7 @@ func (m *Logistic) BuildClassifier(train data.Instances) {
 }
 
 // Computes the distribution for a given instance.
-func (m *Logistic) DistributeForInstance(instance data.Instance) []float64 {
+func (m *Logistic) DistributionForInstance(instance data.Instance) []float64 {
 
 	instance = m.replaceMissingValues.ConvertAndReturn(instance)
 	instance = m.attFilter.ConvertAndReturn(instance)

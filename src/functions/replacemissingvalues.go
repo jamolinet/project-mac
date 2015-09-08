@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"github.com/cosn/collections/queue"
 	"github.com/project-mac/src/data"
 	"github.com/project-mac/src/utils"
 	"math"
@@ -12,6 +13,7 @@ type ReplaceMissingValues struct {
 	input, output          data.Instances
 	firstTime, ignoreClass bool
 	classIndex             int
+	outputQueue queue.Q
 }
 
 func NewReplacingMissingValues() ReplaceMissingValues {
@@ -34,6 +36,15 @@ func (m *ReplaceMissingValues) Exec(instances data.Instances) {
 
 }
 
+// Input an instance for filtering
+func (m *ReplaceMissingValues) Input(instance data.Instance) {
+	if m.modesAndMeans == nil {
+		m.bufferInput(instance)
+	} else {
+		m.convertInstance(instance)
+	}
+}
+
 // Convert a single instance over.
 func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Instance {
 	inst := data.NewInstance()
@@ -42,8 +53,8 @@ func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Inst
 	indices := make([]int, len(instance.RealValues()))
 	num := 0
 	for j := 0; j < len(instance.RealValues()); j++ {
-		if instance.IsMissingValue(j) && (m.input.ClassIndex() != instance.Index(j)) && 
-		(m.input.Attribute(j).IsNominal() || m.input.Attribute(j).IsNumeric()) { /*inst.attributeSparse(j).isNominal() */
+		if instance.IsMissingValue(j) && (m.input.ClassIndex() != instance.Index(j)) &&
+			(m.input.Attribute(j).IsNominal() || m.input.Attribute(j).IsNumeric()) { /*inst.attributeSparse(j).isNominal() */
 			if m.modesAndMeans[instance.Index(j)] != 0 {
 				vals[num] = m.modesAndMeans[instance.Index(j)]
 				indices[num] = instance.Index(j)
@@ -56,9 +67,10 @@ func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Inst
 		}
 	}
 	if num == len(instance.RealValues()) {
-		inst.SparseInstance(instance.Weight(), vals, indices,len(m.output.Attributes()),m.output.Attributes())
+		inst.SparseInstance(instance.Weight(), vals, indices, len(m.output.Attributes()), m.output.Attributes())
 	}
 	m.output.Add(inst)
+	m.outputQueue.Push(inst)
 	return inst
 }
 func (m *ReplaceMissingValues) BatchFinished() {
@@ -117,9 +129,9 @@ func (m *ReplaceMissingValues) BatchFinished() {
 				}
 			}
 		}
-		
+
 		//Convert pending input instances
-		for _,inst := range m.input.Instances() {
+		for _, inst := range m.input.Instances() {
 			m.convertInstance(inst)
 		}
 	}
@@ -188,8 +200,17 @@ func (m *ReplaceMissingValues) SetOutputFormat(insts data.Instances) {
 }
 
 // Returns the output
-func (m *ReplaceMissingValues) Output() data.Instances {
+func (m *ReplaceMissingValues) OutputAll() data.Instances {
 	return m.output
+}
+
+func (m *ReplaceMissingValues) Output() data.Instance {
+	if !m.outputQueue.IsEmpty() {
+		if result, ok := m.outputQueue.Pop().(data.Instance); ok {
+			return result
+		}
+	}
+	return data.NewInstance()
 }
 
 // This method does the function of calling in weka convertInstance(Instance) and then output()

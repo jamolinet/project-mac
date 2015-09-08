@@ -2,32 +2,34 @@ package functions
 
 import (
 	"fmt"
+	"github.com/cosn/collections/queue"
 	"github.com/project-mac/src/data"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
-	"math"
 )
 
 // Converts all nominal attributes into binary numeric attributes.
-// An attribute with k values is transformed into k binary attributes if the class is nominal 
+// An attribute with k values is transformed into k binary attributes if the class is nominal
 // (using the one-attribute-per-value approach). Binary attributes are left binary, if option '-A' is not given.
 // If the class is numeric, you might want to use the supervised version of this filter.
 
 type NominalToBinary struct {
 	// Stores which columns to act on
-	columns         []int
+	columns            []int
 	selectedAttributes []int
-	isRangeInUse    bool
+	isRangeInUse       bool
 	// Are the new attributes going to be nominal or numeric ones?
-	numeric         bool
+	numeric bool
 	// Are all values transformed into new attributes?
-	transformAll    bool
+	transformAll bool
 	// Whether we need to transform at all
 	needToTransform bool
 	input, output   data.Instances
 	firstTime       bool
-	invertSel bool
+	invertSel       bool
+	outputQueue     queue.Q
 }
 
 func NewNominalToBinary() NominalToBinary {
@@ -62,16 +64,23 @@ func (m *NominalToBinary) Exec(instances data.Instances) error {
 	}
 	return nil
 }
+
+// Input an instance for filtering
+func (m *NominalToBinary) Input(instance data.Instance) {
+	m.convertInstance(instance)
+}
+
+// Convert an instance over
 func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance {
-	
+
 	if !m.needToTransform {
 		m.output.Add(instance)
 		return instance
 	}
-	
+
 	vals := make([]float64, m.output.NumAttributes())
 	attSoFar := 0
-	
+
 	for j, att := range m.input.Attributes() {
 		if !att.IsNominal() || (j == m.input.ClassIndex() || !m.isInRange(j)) {
 			vals[attSoFar] = instance.Value(j)
@@ -104,7 +113,7 @@ func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance 
 	indices := make([]int, 0, len(vals))
 	values := make([]float64, 0, len(vals))
 	idx := 0
-	for i,val := range vals {
+	for i, val := range vals {
 		if val != 0 {
 			values[idx] = vals[i]
 			indices[idx] = i
@@ -128,6 +137,7 @@ func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance 
 	}
 	inst.SetNumAttributes(len(values))
 	m.output.Add(inst)
+	m.outputQueue.Push(inst)
 	return inst
 }
 
@@ -286,11 +296,20 @@ func (m *NominalToBinary) getSelectedAttributes(numAttributes int) {
 			}
 		}
 	}
-	m.columns =  m.selectedAttributes
+	m.columns = m.selectedAttributes
 }
 
-func (m *NominalToBinary) Output() data.Instances {
+func (m *NominalToBinary) OutputAll() data.Instances {
 	return m.output
+}
+
+func (m *NominalToBinary) Output() data.Instance {
+	if !m.outputQueue.IsEmpty() {
+		if result, ok := m.outputQueue.Pop().(data.Instance); ok {
+			return result
+		}
+	}
+	return data.NewInstance()
 }
 
 // This method does the function of calling in weka convertInstance(Instance) and then output()

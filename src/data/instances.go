@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"github.com/cosn/collections/set"
 	"github.com/project-mac/src/utils"
 	"math"
 	"math/rand"
@@ -29,6 +30,31 @@ type Instances struct {
 func NewInstances() Instances {
 	var inst Instances
 	inst.instances = make([]Instance, 0)
+	return inst
+}
+
+func NewInstancesNameAttCap(name string, attInfor []Attribute, capacity int) Instances {
+	var names set.S
+	names.Init()
+	nonUniqueNames := ""
+	for _, att := range attInfor {
+		if names.Has(att.Name()) {
+			nonUniqueNames += "'" + att.Name() + "'"
+		}
+		names.Add(att.Name())
+	}
+	if names.Len() != len(attInfor) {
+		panic("Attribute names are not unique! Causes: " + nonUniqueNames)
+	}
+	names.Clear()
+	var inst Instances
+	inst.datasetName = name
+	inst.classIndex = -1
+	inst.attributes = attInfor
+	for i := 0; i < inst.NumAttributes(); i++ {
+		inst.Attribute(i).SetIndex(i)
+	}
+	inst.instances = make([]Instance, capacity)
 	return inst
 }
 
@@ -274,8 +300,8 @@ func (inst *Instances) parseInstances(filepath string) error {
 		if len(attVals) <= inst.ClassIndex() {
 			panic("The number of attributes in an instance can't be less than the class index number")
 		}
-		for x:= 0; x < len(attVals); x++ {
-		//for idx, val := range attVals {
+		for x := 0; x < len(attVals); x++ {
+			//for idx, val := range attVals {
 			//fmt.Printf("Index: %d, Value: %s", idx, val)
 			//fmt.Println()
 			//attr := &inst.attributes[idx]
@@ -299,8 +325,8 @@ func (inst *Instances) readValue(attr *Attribute, direction int, val string, idx
 
 		//switch attr.Type() {
 		//case NUMERIC:
-			instance.AddValues(val)
-			instance.AddRealValues(instance.MissingValue)
+		instance.AddValues(val)
+		instance.AddRealValues(instance.MissingValue)
 		//	break
 		//case NOMINAL:
 		//case STRING:
@@ -357,6 +383,54 @@ func (i *Instances) TrainCV(numFolds, numFold, seed int) Instances {
 	return train
 }
 
+//Creates the training set for one fold of a cross-validation on the dataset
+func (i *Instances) TrainCVRand(numFolds, numFold int, random *rand.Rand) Instances {
+	var numInstForFold, first, offset int
+	var train Instances
+	if numFolds < 2 {
+		panic("The number of folds should be at least 2 or more.")
+	}
+	if numFolds > len(i.instances) {
+		panic("The number of folds can't be greater than number of instances")
+	}
+	numInstForFold = len(i.instances) / numFolds
+	if numFold < len(i.instances)%numFolds {
+		numInstForFold++
+		offset = numFold
+	} else {
+		offset = len(i.instances) % numFolds
+	}
+	train = NewInstancesWithInst(*i, len(i.instances)-numInstForFold)
+	first = numFold*(len(i.instances)/numFolds) + offset
+	i.copyInstances(0, &train, first)
+	i.copyInstances(first+numInstForFold, &train, len(i.instances)-first-numInstForFold)
+	train.Randomizes(random)
+	return train
+}
+
+func (i *Instances) TestCV(numFolds, numFold int) Instances {
+	var numInstForFold, first, offset int
+	var test Instances
+	if numFolds < 2 {
+		panic("The number of folds should be at least 2 or more.")
+	}
+	if numFolds > len(i.instances) {
+		panic("The number of folds can't be greater than number of instances")
+	}
+	numInstForFold = len(i.instances) / numFolds
+	if numFold < len(i.instances)%numFolds {
+		numInstForFold++
+		offset = numFold
+	} else {
+		offset = len(i.instances) % numFolds
+	}
+	test = NewInstancesWithInst(*i, numInstForFold)
+	first = numFold*(i.NumInstances()/numFolds) + offset
+	i.copyInstances(first, &test, numInstForFold)
+	//i.copyInstances(first+numInstForFold, &train, len(i.instances)-first-numInstForFold)
+	return test
+}
+
 //Copies instances from one set to the end of another one
 func (i *Instances) copyInstances(from int, dest *Instances, num int) {
 	for j := 0; j < num; j++ {
@@ -370,6 +444,12 @@ func (i *Instances) Randomize(seed int) {
 	rand.Seed(int64(seed))
 	for j := range i.instances {
 		i.swap(j, rand.Intn(j+1))
+	}
+}
+
+func (i *Instances) Randomizes(random *rand.Rand) {
+	for j := range i.instances {
+		i.swap(j, random.Intn(j+1))
 	}
 }
 
@@ -403,6 +483,125 @@ func (i *Instances) DeleteWithMissingClass() {
 		panic("Class index is negative (not set)!")
 	}
 	i.DeleteWithMissing(i.classIndex)
+}
+
+func (i *Instances) MeanOrMode(idx int) float64 {
+	var result, found float64
+	var counts []int
+	if i.Attribute(idx).IsNumeric() {
+		result, found = 0, 0
+		for _, inst := range i.Instances() {
+			if inst.IsMissingValue(idx) {
+				found += inst.Weight()
+				result += inst.Weight() * inst.Value(idx)
+			}
+		}
+		if found <= 0 {
+			return 0
+		} else {
+			return result / found
+		}
+	} else if i.Attribute(idx).IsNominal() {
+		counts = make([]int, i.Attribute(idx).NumValues())
+		for _, inst := range i.Instances() {
+			if inst.IsMissingValue(idx) {
+				counts[int(inst.Value(idx))] += int(inst.Weight())
+			}
+		}
+		return float64(utils.MaxIndexInts(counts))
+	} else {
+		return 0
+	}
+}
+
+func (i *Instances) Variance(idx int) float64 {
+	var sum, sumSquared, sumOfWeights float64
+	if i.Attribute(idx).IsNumeric() {
+		for _, inst := range i.Instances() {
+			if inst.IsMissingValue(idx) {
+				sum += inst.Weight() * inst.Value(idx)
+				sumSquared += inst.Weight() * inst.Value(idx) * inst.Value(idx)
+				sumOfWeights += inst.Weight()
+			}
+		}
+		if sumOfWeights <= 1 {
+			return 0
+		}
+		result := (sumSquared - (sum * sum / sumOfWeights)) / (sumOfWeights - 1)
+		// We don't like negative variance
+		if result < 0 {
+			return 0
+		} else {
+			return result
+		}
+	} else {
+		panic("Attribute not numeric!!!!!!!!")
+	}
+}
+
+func (i *Instances) Stratify(numFolds int) {
+	if numFolds <= 1 {
+		panic("Number of folds must be greater than 1")
+	}
+	if i.classIndex < 0 {
+		panic("Class index is negative (not set)!")
+	}
+
+	if i.ClassAttribute().IsNominal() {
+		// sort by class
+		index := 1
+		for index < i.NumInstances() {
+			instance1 := *i.Instance(index - 1)
+			for j := index; j < i.NumInstances(); j++ {
+				instance2 := *i.Instance(j)
+				if instance1.ClassValue(i.classIndex) == instance2.ClassValue(i.classIndex) || (instance1.ClassMissing(i.classIndex) && instance2.ClassMissing(i.classIndex)) {
+					i.swap(index,j)
+					index++
+				}
+			}
+			index++
+		}
+		i.stratStep(numFolds)
+	}
+}
+
+func (i *Instances) stratStep(numFolds int) {
+	newVec := make([]Instance, cap(i.instances))
+	start := 0
+	var j int
+	
+	// create stratified batch
+	for len(newVec) < i.NumInstances() {
+		j = start
+		for j < i.NumInstances() {
+			newVec = append(newVec, *i.Instance(j))
+			j = j + numFolds
+		}
+		start++
+	}
+	i.instances = newVec
+}
+
+func (i Instances) StringFreeStructure() Instances {
+	newAtts := make([]Attribute,0)
+	for i,att:=range i.Attributes() {
+		if att.Type() ==  STRING {
+			temp := NewAttributeWithName(att.Name())
+			temp.SetIndex(i)
+			temp.SetType(att.Type())
+			newAtts = append(newAtts, temp)
+		}
+	}
+	if len(newAtts) == 0 {
+		return NewInstancesWithInst(i,0)
+	}
+	atts := i.attributes
+	for i:=range newAtts{
+		atts[newAtts[i].Index()] = newAtts[i]
+	}
+	result := NewInstancesWithInst(i,0)
+	result.attributes = atts
+	return result
 }
 
 func (i *Instances) Add(inst Instance) {

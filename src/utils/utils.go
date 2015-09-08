@@ -238,6 +238,18 @@ func MaxIndex(floats []float64) int {
 	return maxIndex
 }
 
+func MaxIndexInts(floats []int) int {
+	maximmun, maxIndex := 0, 0
+
+	for i, d := range floats {
+		if i == 0 || d > maximmun {
+			maxIndex = i
+			maximmun = d
+		}
+	}
+	return maxIndex
+}
+
 func Normalize(doubles *[]float64, sum float64) {
 	d := *doubles
 	if math.IsNaN(sum) {

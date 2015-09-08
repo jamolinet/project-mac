@@ -30,6 +30,34 @@ func NewNormalize() Normalize {
 	return n
 }
 
+func NewNormalizePtr() *Normalize {
+	var n Normalize
+	n.scale = 1.0
+	n.translation = 0
+	return &n
+}
+
+func (m *Normalize) Exec(instances data.Instances) {
+	for _,instance := range instances.Instances() {
+		m.Input(instance)
+	}
+	m.BatchFinished()
+}
+
+func (m *Normalize) Input(instance data.Instance) {
+	if m.minArray == nil {
+		m.bufferInput(instance)
+	} else {
+		m.ConvertInstance(instance)
+	}
+}
+
+// Adds the supplied input instance to the inputformat dataset for
+// later processing
+func (m *Normalize) bufferInput(inst data.Instance) {
+	m.input.Add(inst)
+}
+
 func (m *Normalize) SetInputFormat(insts data.Instances) {
 	m.input = data.NewInstances()
 	newAtts := make([]data.Attribute, 0)
@@ -115,7 +143,7 @@ func (m *Normalize) BatchFinished() {
 			}
 		}
 
-		//// Convert pending input instances
+		//Convert pending input instances
 		for _, inst := range input.Instances() {
 			m.ConvertInstance(inst)
 		}
@@ -127,7 +155,7 @@ func (m *Normalize) BatchFinished() {
 
 func (m *Normalize) ConvertInstance(instance data.Instance) {
 	inst := data.NewInstance()
-	//Is always a sparse instance
+	//It's always a sparse instance
 	newVals := make([]float64, instance.NumAttributes())
 	newIndices := make([]int, instance.NumAttributes())
 	vals := instance.RealValues()
@@ -158,12 +186,16 @@ func (m *Normalize) ConvertInstance(instance data.Instance) {
 		}
 	}
 	tempVals := make([]float64, ind)
-	tempInd := make([]int,ind)
+	tempInd := make([]int, ind)
 	copy(tempVals, newVals)
 	copy(tempInd, newIndices)
-	inst = data.NewSparseInstanceWithIndexes(instance.Weight(),tempVals, tempInd, m.input.Attributes())
+	inst = data.NewSparseInstanceWithIndexes(instance.Weight(), tempVals, tempInd, m.input.Attributes())
 	m.outputQueue.Push(inst)
 	m.output.Add(inst)
+}
+
+func (m *Normalize) OutputAll() data.Instances {
+	return m.output
 }
 
 func (m *Normalize) Output() data.Instance {

@@ -54,6 +54,16 @@ func NewInstance() Instance {
 	return inst
 }
 
+func NewInstanceWeightValues(weight float64, values []float64) Instance {
+	var inst Instance
+	inst.MissingValue = math.NaN()
+	inst.Input_Att = 0
+	inst.Output_Att = 1
+	inst.weight = weight
+	inst.realValues = values
+	return inst
+}
+
 func NewSparseInstance(weight float64, vals []float64, atts []Attribute) Instance {
 	var inst Instance
 	inst.MissingValue = math.NaN()
@@ -85,6 +95,32 @@ func NewSparseInstance(weight float64, vals []float64, atts []Attribute) Instanc
 	inst.realValues = tmpValues
 	inst.indices = tmpInd
 	inst.numAttributes = len(vals)
+	return inst
+}
+
+func NewSparseInstanceWithIndexes(weight float64, tmpValues []float64, tmpInd []int, atts []Attribute) Instance {
+	var inst Instance
+	inst.MissingValue = math.NaN()
+	inst.Input_Att = 0
+	inst.Output_Att = 1
+	inst.weight = weight
+
+	for k, j := range tmpInd {
+		if atts[j].IsNominal() {
+			if math.IsNaN(tmpValues[k]) {
+				inst.AddValues("?")
+			} else {
+				inst.AddValues(atts[j].Values()[int(tmpValues[k])])
+			}
+		} else if atts[j].IsNominal() && !atts[j].IsString() {
+			inst.AddValues(atts[j].Values()[j])
+		} else {
+			inst.AddValues(atts[j].Name())
+		}
+	}
+	inst.realValues = tmpValues
+	inst.indices = tmpInd
+	inst.numAttributes = len(tmpValues)
 	return inst
 }
 
@@ -180,6 +216,37 @@ func (i *Instance) SparseInstance(weight float64, values []float64, indices []in
 	}
 	i.SetWeight(weight)
 	i.numAttributes = maxValues
+}
+
+func (i *Instance) SetClassMissing(classIndex int) {
+	if classIndex < 0 {
+		panic("Class is not set!")
+	}
+	i.SetMissing(classIndex)
+}
+
+func (i *Instance) SetMissing(attIndex int) {
+	i.SetValue(attIndex, math.NaN())
+}
+
+func (i *Instance) SetValue(attIndex int, value float64) {
+	i.freshAttributeVector()
+	i.realValues[attIndex] = value
+}
+
+/**
+ * Clones the attribute vector of the instance and
+ * overwrites it with the clone.
+ */
+func (i *Instance) freshAttributeVector() {
+	i.realValues = i.ToFloat64Slice()
+}
+
+// Returns the values of each attribute as an array of float64.
+func (i *Instance) ToFloat64Slice() []float64 {
+	newValues := make([]float64, len(i.realValues))
+	copy(newValues, i.realValues)
+	return newValues
 }
 
 //func (i *Instance) AddValuesWithIndex(idx int, value string) {

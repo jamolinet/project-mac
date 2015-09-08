@@ -52,6 +52,20 @@ func NewAttribute() Attribute {
 	return attr
 }
 
+func NewAttributeWithName(name string) Attribute {
+	var attr Attribute
+	//attr := new(Attribute)
+	attr.Arff_Attribute = "@attribute"
+	attr.Arff_Integer = "integer"
+	attr.Arff_Numeric = "numeric"
+	attr.Arff_Real = "real"
+	attr.Arff_String = "string"
+	attr.valuesIndexes = make(map[string]int, 0)
+	attr.values = make([]string, 0)
+	attr.name = name
+	return attr
+}
+
 func (a *Attribute) AddStringValue(val string) int {
 	index, present := a.valuesIndexes[val]
 	if present {
@@ -74,7 +88,7 @@ func (a *Attribute) NumValues() int {
 	return len(a.values)
 }
 
-func (a *Attribute) Value(valindex int) string {
+func (a Attribute) Value(valindex int) string {
 	if !a.IsNominal() && !a.IsString() {
 		return ""
 	} else {
@@ -82,15 +96,15 @@ func (a *Attribute) Value(valindex int) string {
 	}
 }
 
-func (a *Attribute) IsString() bool {
+func (a Attribute) IsString() bool {
 	return a.attr_type == STRING
 }
 
-func (a *Attribute) IsNominal() bool {
+func (a Attribute) IsNominal() bool {
 	return a.attr_type == NOMINAL
 }
 
-func (a *Attribute) IsNumeric() bool {
+func (a Attribute) IsNumeric() bool {
 	return a.attr_type == NUMERIC
 }
 
