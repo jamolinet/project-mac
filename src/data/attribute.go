@@ -49,6 +49,7 @@ func NewAttribute() Attribute {
 	attr.Arff_String = "string"
 	attr.valuesIndexes = make(map[string]int, 0)
 	attr.values = make([]string, 0)
+	attr.values = append(attr.values,"*DUMMY*STRING*FOR*STRING*ATTRIBUTES*")
 	return attr
 }
 
@@ -62,6 +63,7 @@ func NewAttributeWithName(name string) Attribute {
 	attr.Arff_String = "string"
 	attr.valuesIndexes = make(map[string]int, 0)
 	attr.values = make([]string, 0)
+	attr.values = append(attr.values,"*DUMMY*STRING*FOR*STRING*ATTRIBUTES*")
 	attr.name = name
 	return attr
 }
@@ -84,7 +86,8 @@ func (a *Attribute) NumValues() int {
 	if !a.IsNominal() && !a.IsString() {
 		return 0
 	}
-	fmt.Println(len(a.values), "values")
+	//fmt.Println(len(a.values), "values")
+	fmt.Print()
 	return len(a.values)
 }
 

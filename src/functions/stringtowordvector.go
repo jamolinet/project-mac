@@ -75,6 +75,28 @@ func NewStringToWordVectorInst(inputData data.Instances) StringToWordVector {
 	return stwv
 }
 
+func NewStringToWordVector() StringToWordVector {
+	var stwv StringToWordVector
+	stwv.dictionary = omap.NewStringKeyed()
+	stwv.outputsCounts = false
+	stwv.docsCounts = make([]int, 0)
+	stwv.avgDocLength = -1
+	stwv.wordsToKeep = 1000
+	stwv.numInstances = -1
+	stwv.perdiodicPruningRate = -1
+	stwv.minTermFreq = 1
+	stwv.perClass = true
+	stwv.normalize = true
+	stwv.firstTime = true
+	stwv.tf_transformation, stwv.idf_transformation = true, true
+	return stwv
+}
+
+func (m *StringToWordVector) SetInputFormatAndOutputFormat(inputData data.Instances) {
+	m.inputFormat = inputData
+	//m.outputFormat = data.NewInstancesWithClassIndex(inputData.ClassIndex())
+}
+
 //Start the execution of the function
 func (stwv *StringToWordVector) Exec() data.Instances {
 	/* TODO: first check that the input format is initialized*/
@@ -139,6 +161,17 @@ func (stwv *StringToWordVector) Exec() data.Instances {
 	fmt.Println("Done!")
 	stwv.firstTime = false
 	return stwv.outputFormat
+}
+
+func (stwv *StringToWordVector) Input(instance data.Instance) data.Instance {
+	if !stwv.firstTime {
+		firstcopy, inst := stwv.convertInstancewoDocNorm(instance)
+		if stwv.normalize {
+			stwv.normalizeInstance(&inst, firstcopy)
+		}
+		return inst
+	}
+	return instance
 }
 
 func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
@@ -350,7 +383,7 @@ func (stwv *StringToWordVector) determineDictionary(inst *data.Instances) {
 	stwv.outputFormat = data.NewInstances()
 	stwv.outputFormat.SetAttributes(attributes)
 	stwv.outputFormat.SetClassIndex(classIndex)
-}
+	}
 
 func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (int, data.Instance) {
 
@@ -520,7 +553,7 @@ func (stwv *StringToWordVector) convertInstancewoDocNorm(inst data.Instance) (in
 	instSparse.SetIndices(indices)
 	instSparse.SetRealValues(values)
 	instSparse.SetWeight(inst.Weight())
-	instSparse.SetNumAttributes(len(values))
+	instSparse.SetNumAttributes(stwv.outputFormat.NumAttributes())
 	return firstCopy, instSparse
 }
 

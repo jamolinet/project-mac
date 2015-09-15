@@ -1,8 +1,11 @@
 package utils
 
 import (
-	//	"fmt"
+	"fmt"
+	"github.com/huandu/xstrings"
 	"math"
+	"strings"
+	"bytes"
 )
 
 const (
@@ -258,9 +261,144 @@ func Normalize(doubles *[]float64, sum float64) {
 	if sum == 0 {
 		panic("Can't normalize array. Sum is zero.")
 	}
-	for i:= range d {
+	for i := range d {
 		d[i] /= sum
 	}
 	*doubles = d
 }
 
+func Float64ToString(value float64, width, afterDecimalPoint int) string {
+	tempString := Float64ToStringNoWitdh(value, afterDecimalPoint)
+	result := []byte{}
+	var dotPosition int
+fmt.Println(tempString,"temp")
+	if afterDecimalPoint >= width || strings.Index(tempString, "E") != -1 {
+		return tempString
+	}
+
+	// Initialize result
+	result = make([]byte, width)
+	for i := range result {
+		result[i] = ' '
+	}
+
+	if afterDecimalPoint > 0 {
+		// Get position of decimal point and insert decimal point
+		dotPosition = strings.Index(tempString, ".")
+		if dotPosition == -1 {
+			dotPosition = len(tempString)
+		} else {
+			result[width-afterDecimalPoint-1] = '.'
+		}
+	} else {
+		dotPosition = len(tempString)
+	}
+
+	offset := int(width - afterDecimalPoint - dotPosition)
+	if afterDecimalPoint > 0 {
+		offset--
+	}
+
+	// Not enough room to decimal align within the supplied width
+	if offset < 0 {
+		return tempString
+	}
+
+	// Copy characters before decimal point
+	for i := 0; i < dotPosition; i++ {
+		result[offset+i] = tempString[i]
+	}
+
+	// Copy characters after decimal point
+	for i := dotPosition + 1; i < len(tempString); i++ {
+		result[offset+i] = tempString[i]
+	}
+
+	buffer := bytes.NewBuffer(result)
+	return buffer.String()
+
+}
+
+func Float64ToStringNoWitdh(value float64, afterDecimalPoint int) string {
+	var stringBuffer string
+	var temp float64
+	var dotPosition int32
+	var precisionValue int64
+
+	temp = value * math.Pow(10.0, float64(afterDecimalPoint))
+	if math.Abs(temp) < float64(math.MaxInt64) {
+		//------------------------
+		t := func() int64 {
+			if temp > 0 {
+				return int64(temp + 0.5)
+			} else {
+				return -int64(math.Abs(temp) + 0.5)
+			}
+		}
+		//------------------------
+		precisionValue = t()
+		if precisionValue == 0 {
+			stringBuffer += fmt.Sprint(0)
+		} else {
+			stringBuffer += fmt.Sprint(precisionValue)
+		}
+		if afterDecimalPoint == 0 {
+			return stringBuffer
+		}
+		dotPosition = int32(len(stringBuffer) - afterDecimalPoint)
+		for precisionValue < 0 && (dotPosition < 1 || dotPosition < 0) {
+			if precisionValue < 0 {
+				stringBuffer = xstrings.Insert(stringBuffer, "0", 1)
+			} else {
+				stringBuffer = xstrings.Insert(stringBuffer, "0", 0)
+			}
+			dotPosition++
+		}
+		stringBuffer = xstrings.Insert(stringBuffer, ".", int(dotPosition))
+		if precisionValue < 0 && stringBuffer[1] == '.' {
+			stringBuffer = xstrings.Insert(stringBuffer, "0", 1)
+		} else if stringBuffer[0] == '.' {
+			stringBuffer = xstrings.Insert(stringBuffer, "0", 0)
+		}
+		currentPos := len(stringBuffer) - 1
+		for currentPos > int(dotPosition) && stringBuffer[currentPos] == '0' {
+			stringBuffer = xstrings.Insert(stringBuffer, " ", currentPos)
+			currentPos--
+		}
+		if stringBuffer[currentPos] == '.' {
+			stringBuffer = xstrings.Insert(stringBuffer, " ", currentPos)
+		}
+		return stringBuffer
+	}
+	return fmt.Sprint("", value)
+
+}
+
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////v
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////

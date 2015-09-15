@@ -14,4 +14,5 @@ type Filter interface {
 	ConvertInstance(data.Instance)
 	OutputAll() data.Instances
 	Output() data.Instance
+	NotNil() bool
 }

@@ -11,11 +11,13 @@ type RemoveUseless struct {
 	//The type of attribute to delete
 	maxVariancePercentage float64
 	input, output         data.Instances
+	NotNil bool
 }
 
 func NewRemoveUseless() RemoveUseless {
 	var ru RemoveUseless
 	ru.maxVariancePercentage = 99.0
+	ru.NotNil = true
 	return ru
 }
 

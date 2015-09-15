@@ -30,6 +30,7 @@ type NominalToBinary struct {
 	firstTime       bool
 	invertSel       bool
 	outputQueue     queue.Q
+	IsNil string
 }
 
 func NewNominalToBinary() NominalToBinary {
@@ -39,6 +40,8 @@ func NewNominalToBinary() NominalToBinary {
 	ntb.isRangeInUse = false
 	ntb.firstTime = true
 	ntb.invertSel = false
+	ntb.outputQueue.Init()
+	ntb.IsNil = "no"
 	return ntb
 }
 
@@ -49,6 +52,8 @@ func NewNominalToBinaryWithInstances(data data.Instances) NominalToBinary {
 	ntb.isRangeInUse = false
 	ntb.firstTime = true
 	ntb.input = data
+	ntb.outputQueue.Init()
+	ntb.IsNil = "no"
 	return ntb
 }
 
@@ -72,7 +77,6 @@ func (m *NominalToBinary) Input(instance data.Instance) {
 
 // Convert an instance over
 func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance {
-
 	if !m.needToTransform {
 		m.output.Add(instance)
 		return instance
@@ -138,6 +142,7 @@ func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance 
 	inst.SetNumAttributes(len(values))
 	m.output.Add(inst)
 	m.outputQueue.Push(inst)
+	println("pushed")
 	return inst
 }
 

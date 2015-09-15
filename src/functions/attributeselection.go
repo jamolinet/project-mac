@@ -4,7 +4,7 @@ import (
 	"github.com/project-mac/src/data"
 	"math"
 	//	"utils"
-	//"fmt"
+	"fmt"
 )
 
 type AttributeSelection struct {
@@ -43,6 +43,7 @@ func NewAttributeSelection() AttributeSelection {
 func (as *AttributeSelection) StartSelection(instances data.Instances) {
 	as.input = data.NewInstancesWithInst(instances, len(instances.Attributes()))
 	as.input = instances
+	as.output = data.NewInstances()
 	as.hasClass = as.input.ClassIndex() >= 0
 	as.selectedAttributes = as.SelectAttributes(as.input)
 	if len(as.selectedAttributes) == 0 {
@@ -65,6 +66,7 @@ func (as *AttributeSelection) StartSelection(instances data.Instances) {
 	tmpInst := make([]data.Instance, 0)
 	for _, in := range as.input.Instances() {
 		tmpInst = append(tmpInst, as.convertInstance(in))
+		
 	}
 	as.output.SetInstances(tmpInst)
 }
@@ -72,6 +74,7 @@ func (as *AttributeSelection) StartSelection(instances data.Instances) {
 //Convert a single instance over
 func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance {
 	newVasl := make([]float64, 0, len(as.output.Attributes()))
+	//fmt.Println(cap(newVasl), "newVals")
 	for _, current := range as.selectedAttributes {
 		//fmt.Println(current, i, inst.RealValues())
 		newVasl =  append(newVasl,inst.Value(current))
@@ -80,7 +83,8 @@ func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance 
 	}
 	//fmt.Println("----------------------------------------------")
 	newInst := data.NewInstance()
-//	newInst.SetNumAttributes(len(newVasl))
+	newInst.SetNumAttributes(len(as.output.Attributes()))
+	//fmt.Println(newInst.NumAttributes())
 	values_ := make([]float64, len(newVasl))
 	indices_ := make([]int, len(newVasl))
 	vals := 0
@@ -107,6 +111,44 @@ func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance 
 	newInst.SetIndices(indices)
 	newInst.SetRealValues(values)
 	newInst.SetWeight(inst.Weight())
+	return newInst
+}
+
+func (as *AttributeSelection) ConvertInstance(inst data.Instance) data.Instance {
+	//fmt.Println(len(as.output.Attributes()))
+	newVasl := make([]float64, len(as.output.Attributes()))
+	for i, current := range as.selectedAttributes {
+		newVasl[i] =  inst.Value(current)
+	}
+
+	newInst := data.NewInstance()
+	values_ := make([]float64, len(newVasl))
+	indices_ := make([]int, len(newVasl))
+	vals := 0
+	for i := 0; i < len(newVasl); i++ {
+		if newVasl[i] != 0 {
+			values_[vals] = newVasl[i]
+			indices_[vals] = i
+			vals++
+		}
+	}
+	values := make([]float64, vals)
+	indices := make([]int, vals)
+	copy(values, values_)
+	copy(indices, indices_)
+	//fmt.Println(len(indices))
+//	for k, i := range indices {
+//		if as.output.Attribute(i).IsNominal() {
+//			newInst.AddValues(as.output.Attribute(i).Values()[int(values[k])])
+//		} else {
+//			newInst.AddValues(as.output.Attribute(i).Name())
+//		}
+//	}
+fmt.Print()
+	newInst.SetIndices(indices)
+	newInst.SetRealValues(values)
+	newInst.SetWeight(inst.Weight())
+	newInst.SetNumAttributes(len(newVasl))
 	return newInst
 }
 

@@ -15,24 +15,32 @@ type Standardize struct {
 	ignoreClass    bool
 	classIndex     int
 	outputQueue    queue.Q
+	notNil bool
 }
 
 func NewStandardize() Standardize {
 	var s Standardize
+	s.notNil = true
 	return s
 }
 
 func NewStandardizePtr() *Standardize {
-	return new(Standardize)
+	
+	return &Standardize{notNil: true}
 }
 
 // Input an instance for filtering
 func (m *Standardize) Input(instance data.Instance) {
+	m.outputQueue.Init()
 	if m.means == nil {
 		m.bufferInput(instance)
 	} else {
 		m.ConvertInstance(instance)
 	}
+}
+
+func (m *Standardize) NotNil() bool {
+	return m.notNil
 }
 
 // Adds the supplied input instance to the inputformat dataset for

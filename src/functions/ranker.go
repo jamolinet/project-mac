@@ -77,17 +77,17 @@ func (r *Ranker) Search(evaluator InfoGain, instances data.Instances) []int {
 			j++
 		}
 	}
-	fmt.Println(r.attrList, "r.attrList")
+	//fmt.Println(r.attrList, "r.attrList")
 	for i := range r.attrList {
 		r.attrMerit[i] = evaluator.evaluateAttribute(r.attrList[i])
 	}
-	fmt.Println(r.attrMerit, "merrit")
+	//fmt.Println(r.attrMerit, "merrit")
 	tempRanked := r.rankedAttributes()
 	rankedAttributes := make([]int, len(r.attrList))
 	for i := range rankedAttributes {
 		rankedAttributes[i] = int(tempRanked[i][0])
 	}
-	fmt.Println(rankedAttributes, "rankedAttributes")
+	//fmt.Println(rankedAttributes, "rankedAttributes")
 	return rankedAttributes
 }
 
@@ -104,7 +104,7 @@ func (r *Ranker) rankedAttributes() [][]float64 {
 		h++
 	}
 	ranked := utils.SortFloat(r.attrMerit)
-	fmt.Println(ranked, r.attrMerit, "ranked")
+	//fmt.Println(ranked, r.attrMerit, "ranked")
 	// reverse the order of the ranked indexes
 	bestToWorst := make([][]float64, len(ranked))
 	for i := range bestToWorst {
@@ -130,7 +130,7 @@ func (r *Ranker) rankedAttributes() [][]float64 {
 			r.determineNumToSelectFromThreshold(bestToWorst)
 		}
 	}
-	fmt.Println(bestToWorst, "bestToWorst")
+	//fmt.Println(bestToWorst, "bestToWorst")
 	return bestToWorst
 }
 

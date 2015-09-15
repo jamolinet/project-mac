@@ -33,7 +33,7 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 		ntb := NewNumericToBinary()
 		ntb.Exec(instances)
 		instances =  ntb.Output()
-		fmt.Println(instances.Instances())
+		//fmt.Println(instances.Instances())
 	} else { //discretize instances
 		//implement Discretize function
 	}
@@ -51,18 +51,19 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 		}
 	}
 	// Initialize counters
-	fmt.Println(numClasses, "numclasses")
+	//fmt.Println(numClasses, "numclasses")
 	temp := make([]float64, numClasses+1)
 	for k := 0; k < numInstances; k++ {
 		inst := instances.Instance(k)
 		if inst.ClassMissing(classIndex) { //check that class if the class is missing /*implement method to do that*/
 			temp[numClasses] += inst.Weight()
 		} else {
-			fmt.Println(int(inst.ClassValue(classIndex)), "classIndexes", inst.Weight(), "weights")
+			//fmt.Println(int(inst.ClassValue(classIndex)), "classIndexes", inst.Weight(), "weights")
+			fmt.Print()
 			temp[int(inst.ClassValue(classIndex))] += inst.Weight() //get the index of the value of the class
 		}
 	}
-	fmt.Println(temp)
+	//fmt.Println(temp)
 	for k := range counts {
 		if k != classIndex {
 			for i := range temp {

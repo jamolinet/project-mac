@@ -21,12 +21,14 @@ type Normalize struct {
 	classIndex    int
 	ignoreClass   bool
 	outputQueue   queue.Q
+	notNil bool
 }
 
 func NewNormalize() Normalize {
 	var n Normalize
 	n.scale = 1.0
 	n.translation = 0
+	n.notNil = true
 	return n
 }
 
@@ -34,22 +36,35 @@ func NewNormalizePtr() *Normalize {
 	var n Normalize
 	n.scale = 1.0
 	n.translation = 0
+	n.notNil =true
 	return &n
 }
 
 func (m *Normalize) Exec(instances data.Instances) {
+	fmt.Println(len(instances.Instances()))
 	for _,instance := range instances.Instances() {
+		//println("normalizing1")
 		m.Input(instance)
 	}
+//	for _, in := range m.input.Instances() {
+//		fmt.Println(in.RealValues(), in.NumAttributesTest())
+//		fmt.Println(in.Indices())
+//	}
 	m.BatchFinished()
 }
 
 func (m *Normalize) Input(instance data.Instance) {
+	m.outputQueue.Init()
 	if m.minArray == nil {
 		m.bufferInput(instance)
+		//println("normalizing")
 	} else {
 		m.ConvertInstance(instance)
 	}
+}
+
+func (m *Normalize) NotNil() bool {
+	return m.notNil
 }
 
 // Adds the supplied input instance to the inputformat dataset for
@@ -84,6 +99,8 @@ func (m *Normalize) SetInputFormat(insts data.Instances) {
 	m.input.SetAttributes(atts)
 	m.minArray, m.maxArray = nil, nil
 	m.SetOutputFormat(insts)
+	//fmt.Println(len(m.input.Instances()), len(m.input.Attributes()))
+	//fmt.Println(len(m.output.Instances()),len(m.output.Attributes()))
 }
 
 func (m *Normalize) SetOutputFormat(insts data.Instances) {
@@ -122,9 +139,11 @@ func (m *Normalize) BatchFinished() {
 		for i := 0; i < input.NumAttributes(); i++ {
 			m.minArray[i] = math.NaN()
 		}
-
+		//fmt.Println(len(m.maxArray),"m.maxArray")
 		for j := 0; j < input.NumInstances(); j++ {
-			value := input.Instance(j).RealValues()
+			value := input.Instance(j).Float64Slice(input.NumAttributes())
+			//fmt.Println(value, "value", input.ClassIndex())
+			//fmt.Println(input.NumAttributes(),"num`")
 			for i := 0; i < input.NumAttributes(); i++ {
 				if input.Attribute(i).IsNumeric() && input.ClassIndex() != i {
 					if !math.IsNaN(value[i]) {
@@ -156,17 +175,20 @@ func (m *Normalize) BatchFinished() {
 func (m *Normalize) ConvertInstance(instance data.Instance) {
 	inst := data.NewInstance()
 	//It's always a sparse instance
-	newVals := make([]float64, instance.NumAttributes())
-	newIndices := make([]int, instance.NumAttributes())
-	vals := instance.RealValues()
+	newVals := make([]float64, instance.NumAttributesSparse())
+	newIndices := make([]int, instance.NumAttributesSparse())
+	vals := instance.Float64Slice(m.input.NumAttributes())
+ // fmt.Println(vals, m.minArray, m.maxArray) //ok so far
 	ind := 0
 	for j, att := range m.input.Attributes() {
 		var value float64
-		if att.IsNumeric() && math.IsNaN(vals[j]) && m.input.ClassIndex() != j {
+		if att.IsNumeric() && !math.IsNaN(vals[j]) && m.input.ClassIndex() != j {
 			if math.IsNaN(m.minArray[j]) || m.maxArray[j] == m.minArray[j] {
 				value = 0
 			} else {
-				value = (vals[j]-m.minArray[j])/(m.maxArray[j]/m.minArray[j])*m.scale + m.translation
+				//fmt.Println("je je je im in", vals[j],m.minArray[j],m.maxArray[j],m.scale,m.translation)
+				value = (vals[j]-m.minArray[j])/(m.maxArray[j]-m.minArray[j])*m.scale + m.translation
+				//fmt.Println(value)
 				if math.IsNaN(value) {
 					panic(fmt.Sprint("A NaN value was generated while normalizing ", att.Name()))
 				}
@@ -176,6 +198,7 @@ func (m *Normalize) ConvertInstance(instance data.Instance) {
 				newIndices[ind] = j
 				ind++
 			}
+			//fmt.Println(value)
 		} else {
 			value = vals[j]
 			if value != 0.0 {
@@ -183,8 +206,10 @@ func (m *Normalize) ConvertInstance(instance data.Instance) {
 				newIndices[ind] = j
 				ind++
 			}
+			//fmt.Println(value)
 		}
 	}
+
 	tempVals := make([]float64, ind)
 	tempInd := make([]int, ind)
 	copy(tempVals, newVals)

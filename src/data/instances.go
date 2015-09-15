@@ -60,6 +60,9 @@ func NewInstancesNameAttCap(name string, attInfor []Attribute, capacity int) Ins
 
 func NewInstancesWithInst(inst Instances, capacity int) Instances {
 	var i Instances
+	if capacity < 0 {
+		capacity = 0
+	}
 	i.instances = make([]Instance, 0, capacity)
 	if inst.ClassIndex() >= 0 {
 		i.classIndex = inst.ClassIndex()
@@ -82,6 +85,10 @@ func (i *Instances) Attribute(idx int) *Attribute {
 
 func (i *Instances) Instance(idx int) *Instance {
 	return &i.instances[idx]
+}
+
+func (i Instances) InstanceNoPtr(idx int) Instance {
+	return i.instances[idx]
 }
 
 //Parse file dataset
@@ -384,7 +391,7 @@ func (i *Instances) TrainCV(numFolds, numFold, seed int) Instances {
 }
 
 //Creates the training set for one fold of a cross-validation on the dataset
-func (i *Instances) TrainCVRand(numFolds, numFold int, random *rand.Rand) Instances {
+func (i Instances) TrainCVRand(numFolds, numFold int, random *rand.Rand) Instances {
 	var numInstForFold, first, offset int
 	var train Instances
 	if numFolds < 2 {
@@ -400,7 +407,7 @@ func (i *Instances) TrainCVRand(numFolds, numFold int, random *rand.Rand) Instan
 	} else {
 		offset = len(i.instances) % numFolds
 	}
-	train = NewInstancesWithInst(*i, len(i.instances)-numInstForFold)
+	train = NewInstancesWithInst(i, len(i.instances)-numInstForFold)
 	first = numFold*(len(i.instances)/numFolds) + offset
 	i.copyInstances(0, &train, first)
 	i.copyInstances(first+numInstForFold, &train, len(i.instances)-first-numInstForFold)
@@ -408,7 +415,7 @@ func (i *Instances) TrainCVRand(numFolds, numFold int, random *rand.Rand) Instan
 	return train
 }
 
-func (i *Instances) TestCV(numFolds, numFold int) Instances {
+func (i Instances) TestCV(numFolds, numFold int) Instances {
 	var numInstForFold, first, offset int
 	var test Instances
 	if numFolds < 2 {
@@ -424,7 +431,7 @@ func (i *Instances) TestCV(numFolds, numFold int) Instances {
 	} else {
 		offset = len(i.instances) % numFolds
 	}
-	test = NewInstancesWithInst(*i, numInstForFold)
+	test = NewInstancesWithInst(i, numInstForFold)
 	first = numFold*(i.NumInstances()/numFolds) + offset
 	i.copyInstances(first, &test, numInstForFold)
 	//i.copyInstances(first+numInstForFold, &train, len(i.instances)-first-numInstForFold)
@@ -432,9 +439,10 @@ func (i *Instances) TestCV(numFolds, numFold int) Instances {
 }
 
 //Copies instances from one set to the end of another one
-func (i *Instances) copyInstances(from int, dest *Instances, num int) {
+func (i Instances) copyInstances(from int, dest *Instances, num int) {
 	for j := 0; j < num; j++ {
 		data := *i.Instance(from + j)
+		//fmt.Println(data.weight)
 		dest.instances = append(dest.instances, data)
 	}
 }
@@ -473,6 +481,7 @@ func (i *Instances) DeleteWithMissing(attIndex int) {
 	for j := 0; j < len(i.Instances()); j++ {
 		if !i.Instance(j).IsMissingValue(attIndex) {
 			newInstances = append(newInstances, i.instances[j])
+			//			fmt.Println(i.instances[j].weight)
 		}
 	}
 	i.instances = newInstances
@@ -552,10 +561,12 @@ func (i *Instances) Stratify(numFolds int) {
 		index := 1
 		for index < i.NumInstances() {
 			instance1 := *i.Instance(index - 1)
+			//fmt.Println(instance1.RealValues(), "values instance 1")
 			for j := index; j < i.NumInstances(); j++ {
 				instance2 := *i.Instance(j)
-				if instance1.ClassValue(i.classIndex) == instance2.ClassValue(i.classIndex) || (instance1.ClassMissing(i.classIndex) && instance2.ClassMissing(i.classIndex)) {
-					i.swap(index,j)
+				//fmt.Println(instance2.RealValues(), "values instance 2")
+				if instance1.ValueSparse(i.classIndex) == instance2.ValueSparse(i.classIndex) || (instance1.ClassMissing(i.classIndex) && instance2.ClassMissing(i.classIndex)) {
+					i.swap(index, j)
 					index++
 				}
 			}
@@ -566,26 +577,27 @@ func (i *Instances) Stratify(numFolds int) {
 }
 
 func (i *Instances) stratStep(numFolds int) {
-	newVec := make([]Instance, cap(i.instances))
+	newVec := make([]Instance, 0)
 	start := 0
 	var j int
-	
+
 	// create stratified batch
 	for len(newVec) < i.NumInstances() {
 		j = start
 		for j < i.NumInstances() {
-			newVec = append(newVec, *i.Instance(j))
+			newVec = append(newVec, i.instances[j])
 			j = j + numFolds
 		}
 		start++
 	}
 	i.instances = newVec
+
 }
 
 func (i Instances) StringFreeStructure() Instances {
-	newAtts := make([]Attribute,0)
-	for i,att:=range i.Attributes() {
-		if att.Type() ==  STRING {
+	newAtts := make([]Attribute, 0)
+	for i, att := range i.Attributes() {
+		if att.Type() == STRING {
 			temp := NewAttributeWithName(att.Name())
 			temp.SetIndex(i)
 			temp.SetType(att.Type())
@@ -593,13 +605,13 @@ func (i Instances) StringFreeStructure() Instances {
 		}
 	}
 	if len(newAtts) == 0 {
-		return NewInstancesWithInst(i,0)
+		return NewInstancesWithInst(i, 0)
 	}
 	atts := i.attributes
-	for i:=range newAtts{
+	for i := range newAtts {
 		atts[newAtts[i].Index()] = newAtts[i]
 	}
-	result := NewInstancesWithInst(i,0)
+	result := NewInstancesWithInst(i, 0)
 	result.attributes = atts
 	return result
 }
@@ -609,7 +621,7 @@ func (i *Instances) Add(inst Instance) {
 }
 
 func (i *Instances) NumInstances() int {
-	return len(i.Instances())
+	return len(i.instances)
 }
 
 func (i *Instances) NumAttributes() int {

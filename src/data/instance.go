@@ -2,7 +2,7 @@ package data
 
 import (
 	"math"
-	//"fmt"
+	"fmt"
 )
 
 //this struct is like a mix of weka's Instance and SparseInstance with my own implementation
@@ -120,7 +120,7 @@ func NewSparseInstanceWithIndexes(weight float64, tmpValues []float64, tmpInd []
 	}
 	inst.realValues = tmpValues
 	inst.indices = tmpInd
-	inst.numAttributes = len(tmpValues)
+	inst.numAttributes = len(atts)
 	return inst
 }
 
@@ -141,8 +141,17 @@ func (i *Instance) ClassValue(classIndex int) float64 {
 	if (index >= 0) && (i.indices[index] == classIndex) {
 		return i.realValues[index]
 	}
+	fmt.Print()
 	return 0.0
 }
+
+func (i *Instance) ClassValueNotSparse(classIndex int) float64 {
+	if classIndex < 0 {
+		panic("Class is not set")
+	}
+	return i.realValues[classIndex]
+}
+
 
 func (i *Instance) Value(idx int) float64 {
 	index := i.findIndex(idx)
@@ -163,9 +172,21 @@ func (i *Instance) IsMissingValue(idx int) bool {
 	return math.IsNaN(i.Value(idx))
 }
 
+func (i *Instance) IsMissingSparse(idx int) bool {
+	return math.IsNaN(i.realValues[idx])
+}
+
 func (i *Instance) AddValues(value string) {
 	i.values = append(i.values, value)
 	//fmt.Println(i.values)
+}
+
+func (i *Instance) Float64Slice(numAtt int) []float64 {
+	newvalues := make([]float64, numAtt)
+	for j:=range i.realValues {
+		newvalues[i.indices[j]] = i.realValues[j]
+	}
+	return newvalues
 }
 
 //for sparse instances only
@@ -214,8 +235,11 @@ func (i *Instance) SparseInstance(weight float64, values []float64, indices []in
 			i.AddValues(atts[j].Name())
 		}
 	}
+		
 	i.SetWeight(weight)
 	i.numAttributes = maxValues
+//	fmt.Println(i.Indices())	
+//		fmt.Println(i.RealValues(),"iyiyiiyiyiyiy", i.NumAttributes())
 }
 
 func (i *Instance) SetClassMissing(classIndex int) {
@@ -290,6 +314,16 @@ func (i *Instance) NumAttributes() int {
 	if i.numAttributes > len(i.realValues) {
 		return len(i.realValues)
 	}
+	return i.numAttributes
+}
+
+func (i *Instance) NumAttributesSparse() int {
+	return i.numAttributes
+}
+
+func (i *Instance) NumAttributesTest() int {
+	
+	
 	return i.numAttributes
 }
 

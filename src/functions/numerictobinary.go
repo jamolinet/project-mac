@@ -8,10 +8,12 @@ import (
 type NumericToBinary struct {
 	input  data.Instances
 	output data.Instances
+	NotNil bool
 }
 
 func NewNumericToBinary() NumericToBinary {
 	var ntb NumericToBinary
+	ntb.NotNil = true
 	return ntb
 }
 

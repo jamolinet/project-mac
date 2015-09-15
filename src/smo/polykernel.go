@@ -59,8 +59,8 @@ func (pk *PolyKernel) Clean() {
 // The actual size of the cache in bytes is (64 * cacheSize).
 func (pk *PolyKernel) BuildKernel(data data.Instances) {
 	if !pk.checksTurnedOff {
-		pk.initVars(data)
 	}
+	pk.initVars(data)
 }
 
 // Initializes variables
@@ -85,6 +85,7 @@ func (pk *PolyKernel) initVars(data data.Instances) {
 // Implements the abstract function of Kernel using the cache. This method
 // uses the Evaluate() method to do the actual dot product.
 func (pk *PolyKernel) Eval(id1, id2 int, inst1 data.Instance) float64 {
+	//fmt.Println(id1, "id1", id2,"id2")
 	result := 0.0
 	key := int64(-1)
 	location := -1
@@ -145,15 +146,25 @@ func (pk *PolyKernel) Eval(id1, id2 int, inst1 data.Instance) float64 {
 	result = pk.Evaluate(id1, id2, inst1)
 
 	pk.kernelEvals++
-
 	// store result in cache
 	if key != -1 && pk.cacheSize != -1 {
 		// move all cache slots forward one array index
 		// to make room for the new entry
-		copy(pk.keys[location+1:], pk.keys[location:pk.cacheSlots]) //Later see if is ok if not then add +1
-		copy(pk.storage[location+1:], pk.storage[location:pk.cacheSlots])//Later see if is ok if not then add +1
+		tmpKeys := pk.keys[location:location+pk.cacheSlots]
+		tmpStorage := pk.storage[location:location+pk.cacheSlots]
+			for i := 1; i <= pk.cacheSlots; i++ {
+//				fmt.Println(i, location, location+i, i-1)
+				pk.keys[location+i] = tmpKeys[i-1]
+				pk.storage[location+i] = tmpStorage[i-1]
+			}
+		//		copy(tmpKeys[location+1:], pk.keys[location:pk.cacheSlots])
+		//		copy(tmpStorage[location+1:], pk.storage[location:pk.cacheSlots])
+		//copy(pk.keys[location+1:], pk.keys[location:pk.cacheSlots]) //Later see if is ok if not then add +1
+		//copy(pk.storage[location+1:], pk.storage[location:pk.cacheSlots])//Later see if is ok if not then add +1
 		pk.storage[location] = result
 		pk.keys[location] = key + 1
+		//		pk.storage= tmpStorage
+		//		pk.keys = tmpKeys
 	}
 	return result
 }
@@ -164,6 +175,8 @@ func (pk *PolyKernel) Evaluate(id1, id2 int, inst1 data.Instance) float64 {
 	if id1 == id2 {
 		result = pk.dotProd(inst1, inst1)
 	} else {
+		//fmt.Println(id2, "id2")
+		//fmt.Println(len(pk.data.Instances()))
 		result = pk.dotProd(inst1, *pk.data.Instance(id2))
 	}
 	//Use lower order terms?

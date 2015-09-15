@@ -6,6 +6,7 @@ import (
 	"github.com/project-mac/src/utils"
 	"math"
 	"reflect"
+	"fmt"
 )
 
 type ReplaceMissingValues struct {
@@ -14,12 +15,15 @@ type ReplaceMissingValues struct {
 	firstTime, ignoreClass bool
 	classIndex             int
 	outputQueue queue.Q
+	NotNil bool
 }
 
 func NewReplacingMissingValues() ReplaceMissingValues {
 	var rmv ReplaceMissingValues
 	rmv.modesAndMeans = nil
 	rmv.firstTime = true
+	rmv.outputQueue.Init()
+	rmv.NotNil = true
 	return rmv
 }
 
@@ -38,6 +42,7 @@ func (m *ReplaceMissingValues) Exec(instances data.Instances) {
 
 // Input an instance for filtering
 func (m *ReplaceMissingValues) Input(instance data.Instance) {
+	m.outputQueue.Init()
 	if m.modesAndMeans == nil {
 		m.bufferInput(instance)
 	} else {
@@ -45,15 +50,20 @@ func (m *ReplaceMissingValues) Input(instance data.Instance) {
 	}
 }
 
+func (m ReplaceMissingValues) ModesAndMeans() []float64 {
+	return m.modesAndMeans
+}
+
 // Convert a single instance over.
 func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Instance {
+	fmt.Print()
 	inst := data.NewInstance()
 	//Instances for the moment are always SparseInstances
 	vals := make([]float64, len(instance.RealValues()))
 	indices := make([]int, len(instance.RealValues()))
 	num := 0
 	for j := 0; j < len(instance.RealValues()); j++ {
-		if instance.IsMissingValue(j) && (m.input.ClassIndex() != instance.Index(j)) &&
+		if instance.IsMissingSparse(j) && (m.input.ClassIndex() != instance.Index(j)) &&
 			(m.input.Attribute(j).IsNominal() || m.input.Attribute(j).IsNumeric()) { /*inst.attributeSparse(j).isNominal() */
 			if m.modesAndMeans[instance.Index(j)] != 0 {
 				vals[num] = m.modesAndMeans[instance.Index(j)]
@@ -75,6 +85,7 @@ func (m *ReplaceMissingValues) convertInstance(instance data.Instance) data.Inst
 }
 func (m *ReplaceMissingValues) BatchFinished() {
 	if m.modesAndMeans == nil {
+		//fmt.Println("je je j jeanjaja")
 		//Compute modes and means
 		sumOfWeights := m.input.SumOfWeights()
 		counts := make([][]float64, m.input.NumAttributes())
