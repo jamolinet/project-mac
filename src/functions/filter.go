@@ -10,7 +10,7 @@ type Filter interface {
 	SetInputFormat(data.Instances)
 	BatchFinished()
 	Input(data.Instance)
-	bufferInput(data.Instance)
+	BufferInput(data.Instance)
 	ConvertInstance(data.Instance)
 	OutputAll() data.Instances
 	Output() data.Instance

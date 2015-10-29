@@ -4,34 +4,33 @@ import (
 	"github.com/project-mac/src/data"
 	"math"
 	//	"utils"
-	"fmt"
 )
 
 type AttributeSelection struct {
 	//the selected attributes
-	selectedAttributeSet, selectedAttributes []int
+	SelectedAttributeSet, SelectedAttributes []int
 	//the attribute indexes and associated merits if a ranking is produced
-	attributeRanking [][]float64
+	AttributeRanking [][]float64
 	//number of attributes requested from ranked results,
 	//the number of folds to use for cross validation
-	numToSelect, numFolds int
+	NumToSelect, NumFolds int
 	//
-	attributeFilter Remove
+	AttributeFilter Remove
 	//rank features,
 	//do cross validation
-	doRank, doXval bool
+	DoRank, DoXval bool
 	//the instances to select attributes from
 	trainInstances data.Instances
-	evaluator      InfoGain
-	search         Ranker
-	seed           int //used ofr randomize instances in crossvalidation
+	Evaluator      InfoGain
+	Search         Ranker
+	Seed           int //used ofr randomize instances in crossvalidation
 	//these are only for validation statistics, if not useful can be remove later
 	rankResults   [][]float64
 	subSetResults []float64
 	trials        int
 
-	input, output data.Instances
-	hasClass      bool
+	Input_, Output_ data.Instances
+	HasClass        bool
 }
 
 func NewAttributeSelection() AttributeSelection {
@@ -41,50 +40,42 @@ func NewAttributeSelection() AttributeSelection {
 
 //Start the selection attributes process
 func (as *AttributeSelection) StartSelection(instances data.Instances) {
-	as.input = data.NewInstancesWithInst(instances, len(instances.Attributes()))
-	as.input = instances
-	as.output = data.NewInstances()
-	as.hasClass = as.input.ClassIndex() >= 0
-	as.selectedAttributes = as.SelectAttributes(as.input)
-	if len(as.selectedAttributes) == 0 {
+	as.Input_ = data.NewInstancesWithInst(instances, len(instances.Attributes()))
+	as.Input_ = instances
+	as.Output_ = data.NewInstances()
+	as.HasClass = as.Input_.ClassIndex() >= 0
+	as.SelectedAttributes = as.SelectAttributes(as.Input_)
+	if len(as.SelectedAttributes) == 0 {
 		panic("No selected attributes")
 	}
-	//Set output
-	//fmt.Println(as.selectedAttributes, "as.selectedAttributes")
-	as.output = data.NewInstances()
+	//Set Output_
+	as.Output_ = data.NewInstances()
 	attributes := make([]data.Attribute, 0)
-	for i := range as.selectedAttributes {
-		attributes = append(attributes, *as.input.Attribute(as.selectedAttributes[i]))
+	for i := range as.SelectedAttributes {
+		attributes = append(attributes, *as.Input_.Attribute(as.SelectedAttributes[i]))
 	}
-	//fmt.Println(attributes, "attributes")
-	as.output.SetDatasetName(as.input.DatasetName())
-	as.output.SetAttributes(attributes)
-	if as.hasClass {
-		as.output.SetClassIndex(len(as.selectedAttributes) - 1)
+	as.Output_.SetDatasetName(as.Input_.DatasetName())
+	as.Output_.SetAttributes(attributes)
+	if as.HasClass {
+		as.Output_.SetClassIndex(len(as.SelectedAttributes) - 1)
 	}
-	// Convert pending input instances
+	// Convert pending Input_ instances
 	tmpInst := make([]data.Instance, 0)
-	for _, in := range as.input.Instances() {
+	for _, in := range as.Input_.Instances() {
 		tmpInst = append(tmpInst, as.convertInstance(in))
-		
+
 	}
-	as.output.SetInstances(tmpInst)
+	as.Output_.SetInstances(tmpInst)
 }
 
 //Convert a single instance over
 func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance {
-	newVasl := make([]float64, 0, len(as.output.Attributes()))
-	//fmt.Println(cap(newVasl), "newVals")
-	for _, current := range as.selectedAttributes {
-		//fmt.Println(current, i, inst.RealValues())
-		newVasl =  append(newVasl,inst.Value(current))
-		//newVasl[i] = inst.Value(current)
-		//fmt.Println(newVasl[i], "newVasl[i]")
+	newVasl := make([]float64, 0, len(as.Output_.Attributes()))
+	for _, current := range as.SelectedAttributes {
+		newVasl = append(newVasl, inst.Value(current))
 	}
-	//fmt.Println("----------------------------------------------")
 	newInst := data.NewInstance()
-	newInst.SetNumAttributes(len(as.output.Attributes()))
-	//fmt.Println(newInst.NumAttributes())
+	newInst.SetNumAttributes(len(as.Output_.Attributes()))
 	values_ := make([]float64, len(newVasl))
 	indices_ := make([]int, len(newVasl))
 	vals := 0
@@ -99,13 +90,11 @@ func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance 
 	indices := make([]int, vals)
 	copy(values, values_)
 	copy(indices, indices_)
-//	fmt.Println(values, "values")
-//	fmt.Println(indices, "indices")
 	for k, i := range indices {
-		if as.output.Attribute(i).IsNominal() {
-			newInst.AddValues(as.output.Attribute(i).Values()[int(values[k])])
+		if as.Output_.Attribute(i).IsNominal() {
+			newInst.AddValues(as.Output_.Attribute(i).Values()[int(values[k])])
 		} else {
-			newInst.AddValues(as.output.Attribute(i).Name())
+			newInst.AddValues(as.Output_.Attribute(i).Name())
 		}
 	}
 	newInst.SetIndices(indices)
@@ -115,10 +104,9 @@ func (as *AttributeSelection) convertInstance(inst data.Instance) data.Instance 
 }
 
 func (as *AttributeSelection) ConvertInstance(inst data.Instance) data.Instance {
-	//fmt.Println(len(as.output.Attributes()))
-	newVasl := make([]float64, len(as.output.Attributes()))
-	for i, current := range as.selectedAttributes {
-		newVasl[i] =  inst.Value(current)
+	newVasl := make([]float64, len(as.Output_.Attributes()))
+	for i, current := range as.SelectedAttributes {
+		newVasl[i] = inst.Value(current)
 	}
 
 	newInst := data.NewInstance()
@@ -136,15 +124,6 @@ func (as *AttributeSelection) ConvertInstance(inst data.Instance) data.Instance 
 	indices := make([]int, vals)
 	copy(values, values_)
 	copy(indices, indices_)
-	//fmt.Println(len(indices))
-//	for k, i := range indices {
-//		if as.output.Attribute(i).IsNominal() {
-//			newInst.AddValues(as.output.Attribute(i).Values()[int(values[k])])
-//		} else {
-//			newInst.AddValues(as.output.Attribute(i).Name())
-//		}
-//	}
-fmt.Print()
 	newInst.SetIndices(indices)
 	newInst.SetRealValues(values)
 	newInst.SetWeight(inst.Weight())
@@ -155,32 +134,31 @@ fmt.Print()
 func (as *AttributeSelection) SelectAttributes(data_ data.Instances) []int {
 	//***********attributeSet := make([]int, 0)
 	as.trainInstances = data_
-	as.doRank = as.search.GenerateRanking()
+	as.DoRank = as.Search.GenerateRanking()
 	// check that a class index has been set
 	if as.trainInstances.ClassIndex() < 0 {
 		as.trainInstances.SetClassIndex(len(as.trainInstances.Attributes()) - 1)
 	}
-	// Initialize the attribute evaluator
-	as.evaluator.BuildEvaluator(as.trainInstances)
+	// Initialize the attribute Evaluator
+	as.Evaluator.BuildEvaluator(as.trainInstances)
 	//fieldWith := int(math.Log(float64(len(as.trainInstances.Attributes()) + 1)))
-	// Do the search
+	// Do the Search
 	//***********attributeSet =
-	as.search.Search(as.evaluator, as.trainInstances)
+	as.Search.Search(as.Evaluator, as.trainInstances)
 	// InfoGain do not implements postprocessing in weka
 
 	//I won't use this check because in this implementation it will always be true
-	//due that search method always is going to be Ranker
-	if as.doRank {
+	//due that Search method always is going to be Ranker
+	if as.DoRank {
 	}
-	as.attributeRanking = as.search.rankedAttributes()
+	as.AttributeRanking = as.Search.RankedAttributes()
 	// retrieve the number of attributes to retain
-	as.numToSelect = as.search.GetCalculatedNumToSelect()
-	//fmt.Println(as.numToSelect, "as.numToSelect")
+	as.NumToSelect = as.Search.GetCalculatedNumToSelect()
 	// determine fieldwidth for merit
 	f_p, w_p := 0, 0
-	for i := 0; i < as.numToSelect; i++ {
-		precision := math.Abs(as.attributeRanking[i][1]) - math.Abs(as.attributeRanking[i][1])
-		intPart := int(math.Abs(as.attributeRanking[i][1]))
+	for i := 0; i < as.NumToSelect; i++ {
+		precision := math.Abs(as.AttributeRanking[i][1]) - math.Abs(as.AttributeRanking[i][1])
+		intPart := int(math.Abs(as.AttributeRanking[i][1]))
 		if precision > 0 {
 			precision = math.Abs((math.Log(math.Abs(precision)) / math.Log(10))) + 3
 		}
@@ -191,43 +169,43 @@ func (as *AttributeSelection) SelectAttributes(data_ data.Instances) []int {
 			if w_p < 2 {
 				w_p = 2
 			}
-		} else if (math.Abs((math.Log(math.Abs(as.attributeRanking[i][1])) / math.Log(10))) + 1) > float64(w_p) {
-			if as.attributeRanking[i][1] > 0 {
-				w_p = int(math.Abs((math.Log(math.Abs(as.attributeRanking[i][1])) / math.Log(10))) + 1)
+		} else if (math.Abs((math.Log(math.Abs(as.AttributeRanking[i][1])) / math.Log(10))) + 1) > float64(w_p) {
+			if as.AttributeRanking[i][1] > 0 {
+				w_p = int(math.Abs((math.Log(math.Abs(as.AttributeRanking[i][1])) / math.Log(10))) + 1)
 			}
 		}
 	}
 	// set up the selected attributes array - usable by a filter or
 	// whatever
 	if as.trainInstances.ClassIndex() >= 0 {
-		as.selectedAttributeSet = make([]int, as.numToSelect+1)
-		as.selectedAttributeSet[as.numToSelect] = as.trainInstances.ClassIndex()
+		as.SelectedAttributeSet = make([]int, as.NumToSelect+1)
+		as.SelectedAttributeSet[as.NumToSelect] = as.trainInstances.ClassIndex()
 	} else {
-		as.selectedAttributeSet = make([]int, as.numToSelect)
+		as.SelectedAttributeSet = make([]int, as.NumToSelect)
 	}
-	for i := 0; i < as.numToSelect; i++ {
-		as.selectedAttributeSet[i] = int(as.attributeRanking[i][0])
+	for i := 0; i < as.NumToSelect; i++ {
+		as.SelectedAttributeSet[i] = int(as.AttributeRanking[i][0])
 	}
-	//fmt.Println(as.selectedAttributeSet, "as.selectedAttributeSet")
-	if as.doXval {
+
+	if as.DoXval {
 		as.CrossValidateAttribute()
 	}
-	if as.selectedAttributeSet != nil && !as.doXval {
-		as.attributeFilter = NewRemove()
-		as.attributeFilter.SetSelectedColumns(as.selectedAttributeSet)
-		as.attributeFilter.SetInvertSelection(true)
-		as.attributeFilter.SetInputFormat(as.trainInstances)
+	if as.SelectedAttributeSet != nil && !as.DoXval {
+		as.AttributeFilter = NewRemove()
+		as.AttributeFilter.SetSelectedColumns(as.SelectedAttributeSet)
+		as.AttributeFilter.SetInvertSelection(true)
+		as.AttributeFilter.SetInputFormat(as.trainInstances)
 	}
 	as.trainInstances = data.NewInstancesWithInst(as.trainInstances, 0)
-	return as.selectedAttributeSet
+	return as.SelectedAttributeSet
 }
 
 func (as *AttributeSelection) CrossValidateAttribute() {
 	cvData := as.trainInstances
 	var train data.Instances
-	cvData.Randomize(as.seed)
-	for i := 0; i < as.numFolds; i++ {
-		train = cvData.TrainCV(as.numFolds, i, as.seed)
+	cvData.Randomize(as.Seed)
+	for i := 0; i < as.NumFolds; i++ {
+		train = cvData.TrainCV(as.NumFolds, i, as.Seed)
 		as.selectAttributesCVSplit(train)
 	}
 
@@ -235,7 +213,7 @@ func (as *AttributeSelection) CrossValidateAttribute() {
 
 //Select attributes for a split of the data
 func (as *AttributeSelection) selectAttributesCVSplit(split data.Instances) {
-	attributeRanking := make([][]float64, 0)
+	AttributeRanking := make([][]float64, 0)
 	//this is only helpfull if this method is called from outside not from inner method of the object
 	//	if as.trainInstances.(nil)  {
 	//		as.trainInstances =  split
@@ -250,20 +228,20 @@ func (as *AttributeSelection) selectAttributesCVSplit(split data.Instances) {
 		}
 
 	}
-	as.evaluator.BuildEvaluator(split)
-	// Do the search
-	attributeSet := as.search.Search(as.evaluator, split)
-	if as.doRank {
-		attributeRanking = as.search.rankedAttributes()
-		for j := range attributeRanking {
+	as.Evaluator.BuildEvaluator(split)
+	// Do the Search
+	attributeSet := as.Search.Search(as.Evaluator, split)
+	if as.DoRank {
+		AttributeRanking = as.Search.RankedAttributes()
+		for j := range AttributeRanking {
 			// merit
-			as.rankResults[0][int(attributeRanking[j][0])] += attributeRanking[j][1]
+			as.rankResults[0][int(AttributeRanking[j][0])] += AttributeRanking[j][1]
 			// squared merit
-			as.rankResults[2][int(attributeRanking[j][0])] += (attributeRanking[j][1] * attributeRanking[j][1])
+			as.rankResults[2][int(AttributeRanking[j][0])] += (AttributeRanking[j][1] * AttributeRanking[j][1])
 			// rank
-			as.rankResults[1][int(attributeRanking[j][0])] += float64(j + 1)
+			as.rankResults[1][int(AttributeRanking[j][0])] += float64(j + 1)
 			// squared rank
-			as.rankResults[3][int(attributeRanking[j][0])] += float64((j + 1) * (j + 1))
+			as.rankResults[3][int(AttributeRanking[j][0])] += float64((j + 1) * (j + 1))
 		}
 	} else {
 		for j := range attributeSet {
@@ -274,13 +252,13 @@ func (as *AttributeSelection) selectAttributesCVSplit(split data.Instances) {
 }
 
 func (as *AttributeSelection) SetEvaluator(eval InfoGain) {
-	as.evaluator = eval
+	as.Evaluator = eval
 }
 
 func (as *AttributeSelection) SetSearchMethod(method Ranker) {
-	as.search = method
+	as.Search = method
 }
 
 func (as *AttributeSelection) Output() data.Instances {
-	return as.output
+	return as.Output_
 }

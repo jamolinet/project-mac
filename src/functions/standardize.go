@@ -5,52 +5,53 @@ import (
 	"github.com/project-mac/src/data"
 	"math"
 	"reflect"
+	//"fmt"
 )
 
 type Standardize struct {
-	//The means
+	//The Means
 	//The variances
-	means, stdDevs []float64
-	input, output  data.Instances
-	ignoreClass    bool
-	classIndex     int
-	outputQueue    queue.Q
-	notNil bool
+	Means, StdDevs []float64
+	Input_, Output_  data.Instances
+	IgnoreClass    bool
+	ClassIndex_     int
+	OutputQueue    queue.Q
+	NotNil_ bool
 }
 
 func NewStandardize() Standardize {
 	var s Standardize
-	s.notNil = true
+	s.NotNil_ = true
 	return s
 }
 
 func NewStandardizePtr() *Standardize {
 	
-	return &Standardize{notNil: true}
+	return &Standardize{NotNil_: true}
 }
 
 // Input an instance for filtering
 func (m *Standardize) Input(instance data.Instance) {
-	m.outputQueue.Init()
-	if m.means == nil {
-		m.bufferInput(instance)
+	m.OutputQueue.Init()
+	if m.Means == nil {
+		m.BufferInput(instance)
 	} else {
 		m.ConvertInstance(instance)
 	}
 }
 
 func (m *Standardize) NotNil() bool {
-	return m.notNil
+	return m.NotNil_
 }
 
-// Adds the supplied input instance to the inputformat dataset for
+// Adds the supplied Input_ instance to the inputformat dataset for
 // later processing
-func (m *Standardize) bufferInput(inst data.Instance) {
-	m.input.Add(inst)
+func (m *Standardize) BufferInput(inst data.Instance) {
+	m.Input_.Add(inst)
 }
 
 func (m *Standardize) SetInputFormat(insts data.Instances) {
-	m.input = data.NewInstances()
+	m.Input_ = data.NewInstances()
 	newAtts := make([]data.Attribute, 0)
 	for i, att := range insts.Attributes() {
 		if att.Type() == data.STRING {
@@ -66,44 +67,44 @@ func (m *Standardize) SetInputFormat(insts data.Instances) {
 			atts[att.Index()] = att
 		}
 	}
-	m.input.SetClassIndex(insts.ClassIndex())
-	if m.ignoreClass {
-		m.classIndex = m.input.ClassIndex()
-		m.input.SetClassIndex(-1)
+	m.Input_.SetClassIndex(insts.ClassIndex())
+	if m.IgnoreClass {
+		m.ClassIndex_ = m.Input_.ClassIndex()
+		m.Input_.SetClassIndex(-1)
 	}
-	m.input.SetDatasetName(insts.DatasetName())
-	m.input.SetAttributes(atts)
-	m.means, m.stdDevs = nil, nil
+	m.Input_.SetDatasetName(insts.DatasetName())
+	m.Input_.SetAttributes(atts)
+	m.Means, m.StdDevs = nil, nil
 	m.SetOutputFormat(insts)
 }
 
 func (m *Standardize) BatchFinished() {
-	if m.means == nil {
-		input := m.input
+	if m.Means == nil {
+		Input_ := m.Input_
 		//Compute minimuns and maximuns
-		m.means = make([]float64, input.NumAttributes())
-		m.stdDevs = make([]float64, input.NumAttributes())
+		m.Means = make([]float64, Input_.NumAttributes())
+		m.StdDevs = make([]float64, Input_.NumAttributes())
 
-		for i := 0; i < input.NumAttributes(); i++ {
-			if input.Attribute(i).IsNumeric() && input.ClassIndex() != i {
-				m.means[i] = input.MeanOrMode(i)
-				m.stdDevs[i] = math.Sqrt(input.Variance(i))
+		for i := 0; i < Input_.NumAttributes(); i++ {
+			if Input_.Attribute(i).IsNumeric() && Input_.ClassIndex() != i {
+				m.Means[i] = Input_.MeanOrMode(i)
+				m.StdDevs[i] = math.Sqrt(Input_.Variance(i))
 			}
 		}
 
-		//Convert pending input instances
-		for _, inst := range input.Instances() {
+		//Convert pending Input_ instances
+		for _, inst := range Input_.Instances() {
 			m.ConvertInstance(inst)
 		}
 	}
 }
 
 func (m *Standardize) SetOutputFormat(insts data.Instances) {
-	m.output = data.NewInstances()
+	m.Output_ = data.NewInstances()
 	//Strings free structure, "cleanses" string types (i.e. doesn't contain references to the
 	//strings seen in the past)
 	newAtts := make([]data.Attribute, 0)
-	for i, att := range m.input.Attributes() {
+	for i, att := range m.Input_.Attributes() {
 		if att.Type() == data.STRING {
 			at := data.NewAttribute()
 			at.SetName(att.Name())
@@ -111,7 +112,7 @@ func (m *Standardize) SetOutputFormat(insts data.Instances) {
 			newAtts = append(newAtts, at)
 		}
 	}
-	atts := m.input.Attributes()
+	atts := m.Input_.Attributes()
 	if len(newAtts) != 0 {
 		for _, att := range newAtts {
 			atts[att.Index()] = att
@@ -119,31 +120,31 @@ func (m *Standardize) SetOutputFormat(insts data.Instances) {
 	}
 	//Rename the relation
 	dataSetName := insts.DatasetName() + "-" + reflect.TypeOf(insts).String()
-	m.output.SetDatasetName(dataSetName)
-	m.output.SetClassIndex(m.input.ClassIndex())
-	m.output.SetAttributes(atts)
-	m.outputQueue.Init()
+	m.Output_.SetDatasetName(dataSetName)
+	m.Output_.SetClassIndex(m.Input_.ClassIndex())
+	m.Output_.SetAttributes(atts)
+	m.OutputQueue.Init()
 }
 
 //Convert a single instance over. The converted instance is added to the
-//     * end of the output queue.
+//     * end of the Output_ queue.
 
 func (m *Standardize) ConvertInstance(instance data.Instance) {
 	inst := data.NewInstance()
 	//It's always a sparse instance
 	newVals := make([]float64, instance.NumAttributes())
 	newIndices := make([]int, instance.NumAttributes())
-	vals := instance.RealValues()
+	vals := instance.ToFloat64Slice()
 	ind := 0
-	for j, att := range m.input.Attributes() {
+	for j := 0; j < instance.NumAttributes();j++ {
 		var value float64
-		if att.IsNumeric() && math.IsNaN(vals[j]) && m.input.ClassIndex() != j {
+		if m.Input_.Attributes()[j].IsNumeric() && (!math.IsNaN(vals[j]) && m.Input_.ClassIndex() != j) {
 
 			// Just subtract the mean if the standard deviation is zero
-			if m.stdDevs[j] > 0 {
-				value = (vals[j] - m.means[j]) / m.stdDevs[j]
+			if m.StdDevs[j] > 0 {
+				value = (vals[j] - m.Means[j]) / m.StdDevs[j]
 			} else {
-				value = vals[j] - m.means[j]
+				value = vals[j] - m.Means[j]
 			}
 			if value != 0 {
 				newVals[ind] = value
@@ -163,9 +164,9 @@ func (m *Standardize) ConvertInstance(instance data.Instance) {
 	tempInd := make([]int, ind)
 	copy(tempVals, newVals)
 	copy(tempInd, newIndices)
-	inst = data.NewSparseInstanceWithIndexes(instance.Weight(), tempVals, tempInd, m.input.Attributes())
-	m.outputQueue.Push(inst)
-	m.output.Add(inst)
+	inst = data.NewSparseInstanceWithIndexes(instance.Weight(), tempVals, tempInd, m.Input_.Attributes())
+	m.OutputQueue.Push(inst)
+	m.Output_.Add(inst)
 }
 
 func (m *Standardize) Exec(instances data.Instances) {
@@ -176,12 +177,12 @@ func (m *Standardize) Exec(instances data.Instances) {
 }
 
 func (m *Standardize) OutputAll() data.Instances {
-	return m.output
+	return m.Output_
 }
 
 func (m *Standardize) Output() data.Instance {
-	if !m.outputQueue.IsEmpty() {
-		if result, ok := m.outputQueue.Pop().(data.Instance); ok {
+	if !m.OutputQueue.IsEmpty() {
+		if result, ok := m.OutputQueue.Pop().(data.Instance); ok {
 			return result
 		}
 	}

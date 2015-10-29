@@ -7,36 +7,36 @@ import (
 
 type RemoveUseless struct {
 	//The filter used to remove attributes
-	removeFilter Remove
+	RemoveFilter Remove
 	//The type of attribute to delete
-	maxVariancePercentage float64
-	input, output         data.Instances
+	MaxVariancePercentage float64
+	Input_, Output_         data.Instances
 	NotNil bool
 }
 
 func NewRemoveUseless() RemoveUseless {
 	var ru RemoveUseless
-	ru.maxVariancePercentage = 99.0
+	ru.MaxVariancePercentage = 99.0
 	ru.NotNil = true
 	return ru
 }
 
 func (m *RemoveUseless) Input(instances data.Instances) {
-	if m.removeFilter.IsNotNil() {
-		m.removeFilter.Exec(instances)
-		m.output = m.removeFilter.outputFormat
+	if m.RemoveFilter.IsNotNil() {
+		m.RemoveFilter.Exec(instances)
+		m.Output_ = m.RemoveFilter.OutputFormat
 	}
 	for _, instance := range instances.Instances() {
-		m.input.Add(instance)
+		m.Input_.Add(instance)
 	}
 }
 
 // Execute the filter
 func (m *RemoveUseless) Exec(instances data.Instances) {
-	if !m.removeFilter.IsNotNil() {
+	if !m.RemoveFilter.IsNotNil() {
 
 		//establish attributes to remove from first batch
-		toFilter := m.input
+		toFilter := m.Input_
 		attsToDelete := make([]int, toFilter.NumAttributes())
 		numToDelete := 0
 		for i := range toFilter.Attributes() {
@@ -54,7 +54,7 @@ func (m *RemoveUseless) Exec(instances data.Instances) {
 			} else if toFilter.Attribute(i).IsNominal() {
 				//remove nominal attributes that vary too much
 				variancePercent := float64(stats.DistinctCount) / float64(stats.TotalCount-stats.MissingCount) * 100.0
-				if variancePercent > m.maxVariancePercentage {
+				if variancePercent > m.MaxVariancePercentage {
 					attsToDelete[numToDelete] = i
 					numToDelete++
 				}
@@ -63,24 +63,24 @@ func (m *RemoveUseless) Exec(instances data.Instances) {
 
 		finalAttsToDelete := make([]int, numToDelete)
 		copy(attsToDelete, finalAttsToDelete[:numToDelete+1])
-		m.removeFilter = NewRemove()
-		m.removeFilter.SetSelectedColumns(finalAttsToDelete)
-		m.removeFilter.SetInvertSelection(false)
-		m.removeFilter.SetInputFormat(toFilter)
-		m.removeFilter.Exec(toFilter)
+		m.RemoveFilter = NewRemove()
+		m.RemoveFilter.SetSelectedColumns(finalAttsToDelete)
+		m.RemoveFilter.SetInvertSelection(false)
+		m.RemoveFilter.SetInputFormat(toFilter)
+		m.RemoveFilter.Exec(toFilter)
 		
-		outputDataset := m.removeFilter.outputFormat
+		outputDataset := m.RemoveFilter.OutputFormat
 		//restore old relation name to hide attribute filter stamp
 		outputDataset.SetDatasetName(toFilter.DatasetName())
 		m.SetOutputFormat(outputDataset)
 		for _,inst := range outputDataset.Instances() {
-			m.output.Add(inst)
+			m.Output_.Add(inst)
 		}
 	}
 }
 
 func (m *RemoveUseless) SetInputFormat(insts data.Instances) {
-	m.input = data.NewInstances()
+	m.Input_ = data.NewInstances()
 	newAtts := make([]data.Attribute, 0)
 	for i, att := range insts.Attributes() {
 		if att.Type() == data.STRING {
@@ -97,18 +97,18 @@ func (m *RemoveUseless) SetInputFormat(insts data.Instances) {
 		}
 	}
 
-	m.input.SetDatasetName(insts.DatasetName())
-	m.input.SetAttributes(atts)
+	m.Input_.SetDatasetName(insts.DatasetName())
+	m.Input_.SetAttributes(atts)
 	//m.SetOutputFormat(insts)
 }
 
-// Sets the format of output instances
+// Sets the format of Output_ instances
 func (m *RemoveUseless) SetOutputFormat(insts data.Instances) {
-	m.output = data.NewInstances()
+	m.Output_ = data.NewInstances()
 	//Strings free structure, "cleanses" string types (i.e. doesn't contain references to the
 	//strings seen in the past)
 	newAtts := make([]data.Attribute, 0)
-	for i, att := range m.input.Attributes() {
+	for i, att := range m.Input_.Attributes() {
 		if att.Type() == data.STRING {
 			at := data.NewAttribute()
 			at.SetName(att.Name())
@@ -116,7 +116,7 @@ func (m *RemoveUseless) SetOutputFormat(insts data.Instances) {
 			newAtts = append(newAtts, at)
 		}
 	}
-	atts := m.input.Attributes()
+	atts := m.Input_.Attributes()
 	if len(newAtts) != 0 {
 		for _, att := range newAtts {
 			atts[att.Index()] = att
@@ -124,15 +124,15 @@ func (m *RemoveUseless) SetOutputFormat(insts data.Instances) {
 	}
 	//Rename the relation
 	dataSetName := insts.DatasetName() + "-" + reflect.TypeOf(insts).String()
-	m.output.SetDatasetName(dataSetName)
-	m.output.SetClassIndex(m.input.ClassIndex())
-	m.output.SetAttributes(atts)
+	m.Output_.SetDatasetName(dataSetName)
+	m.Output_.SetClassIndex(m.Input_.ClassIndex())
+	m.Output_.SetAttributes(atts)
 }
 
 func (r *RemoveUseless) Output() data.Instances {
-	return r.output
+	return r.Output_
 }
 
 func (r *RemoveUseless) ConvertAndReturn(instance data.Instance) data.Instance {
-	return r.removeFilter.ConvertAndReturn(instance)
+	return r.RemoveFilter.ConvertAndReturn(instance)
 }

@@ -1,26 +1,26 @@
 package functions
 
 import (
-	"github.com/project-mac/src/data"
-	"math"
-	"github.com/project-mac/src/utils"
 	"fmt"
+	"github.com/project-mac/src/data"
+	"github.com/project-mac/src/utils"
+	"math"
 )
 
 type InfoGain struct {
 	// Treat missing values as a seperate value
-	missingMerge bool
-	//Just binarize numeric attributes
-	binarize bool
+	MissingMerge bool
+	//Just Binarize numeric attributes
+	Binarize bool
 	// The info gain for each attribute
-	infoGains []float64
+	InfoGains []float64
 }
 
 func NewInfoGain() InfoGain {
 	var ig InfoGain
-	ig.missingMerge = true
-	ig.binarize = false
-	ig.infoGains = make([]float64, 0)
+	ig.MissingMerge = true
+	ig.Binarize = false
+	ig.InfoGains = make([]float64, 0)
 	return ig
 }
 
@@ -28,20 +28,22 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 	classIndex := instances.ClassIndex()
 	numInstances := len(instances.Instances())
 
-	if ig.binarize { //binarize instances
-		//implement NumericToBinary function
+	if ig.Binarize { //Binarize instances
 		ntb := NewNumericToBinary()
 		ntb.Exec(instances)
-		instances =  ntb.Output()
-		//fmt.Println(instances.Instances())
+		instances = ntb.Output()
 	} else { //discretize instances
-		//implement Discretize function
+		dis := NewDiscretize()
+		dis.SetUseBetterEncoding(true)
+		dis.SetRange("all")
+		dis.SetInputFormat(instances)
+		dis.BatchFinished()
+		instances = dis.Output()
 	}
 	numClasses := instances.Attribute(classIndex).NumValues()
 	// Reserve space and initialize counters
 	counts := make([][][]float64, len(instances.Attributes())) //initialize first dimension
 	for k := range instances.Attributes() {
-		//fmt.Println(k)
 		if k != classIndex {
 			numValues := len(instances.Attributes()[k].Values())
 			counts[k] = make([][]float64, numValues+1) //initialize second dimension
@@ -51,19 +53,16 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 		}
 	}
 	// Initialize counters
-	//fmt.Println(numClasses, "numclasses")
 	temp := make([]float64, numClasses+1)
 	for k := 0; k < numInstances; k++ {
 		inst := instances.Instance(k)
 		if inst.ClassMissing(classIndex) { //check that class if the class is missing /*implement method to do that*/
 			temp[numClasses] += inst.Weight()
 		} else {
-			//fmt.Println(int(inst.ClassValue(classIndex)), "classIndexes", inst.Weight(), "weights")
 			fmt.Print()
 			temp[int(inst.ClassValue(classIndex))] += inst.Weight() //get the index of the value of the class
 		}
 	}
-	//fmt.Println(temp)
 	for k := range counts {
 		if k != classIndex {
 			for i := range temp {
@@ -98,7 +97,7 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 		}
 	}
 	// distribute missing counts if required
-	if ig.missingMerge {
+	if ig.MissingMerge {
 		for k := range instances.Attributes() {
 			if k != classIndex {
 				numValues := len(instances.Attributes()[k].Values())
@@ -152,16 +151,30 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 		}
 	}
 	// Compute info gains
-	ig.infoGains = make([]float64, len(instances.Attributes()))
+	ig.InfoGains = make([]float64, len(instances.Attributes()))
 	for i := range instances.Attributes() {
 		if i != classIndex {
-			ig.infoGains[i] = entropyOverColumns(counts[i]) - entropyConditionedOnRows(counts[i])
+			ig.InfoGains[i] = EntropyOverColumns(counts[i]) - EntropyConditionedOnRows(counts[i])
 		}
 	}
-	//fmt.Println(ig.infoGains, "infogain")
+	//fmt.Println(ig.InfoGains, "infogain")
 }
 
-func entropyOverColumns(matrix [][]float64) float64 {
+func Entropy(array []float64) float64 {
+	returnValue, sum := 0.0, 0.0
+
+	for i := range array {
+		returnValue = returnValue - LnFunc(array[i])
+		sum += array[i]
+	}
+	if utils.Eq(sum, 0) {
+		return 0
+	} else {
+		return (returnValue + LnFunc(sum)) / (sum * math.Log(2))
+	}
+}
+
+func EntropyOverColumns(matrix [][]float64) float64 {
 	returnValue, total := 0.0, 0.0
 	var sumForColumn float64
 	for j := range matrix[0] {
@@ -169,25 +182,25 @@ func entropyOverColumns(matrix [][]float64) float64 {
 		for i := range matrix {
 			sumForColumn += matrix[i][j]
 		}
-		returnValue = returnValue - lnFunc(sumForColumn)
+		returnValue = returnValue - LnFunc(sumForColumn)
 		total += sumForColumn
 	}
 	if utils.Eq(total, 0) {
 		return 0
 	}
-	return (returnValue + lnFunc(total)) / (total * math.Log(2))
+	return (returnValue + LnFunc(total)) / (total * math.Log(2))
 }
 
-func entropyConditionedOnRows(matrix [][]float64) float64 {
+func EntropyConditionedOnRows(matrix [][]float64) float64 {
 	returnValue, total := 0.0, 0.0
 	var sumForRow float64
 	for i := range matrix {
 		sumForRow = 0
 		for j := range matrix[0] {
-			returnValue = returnValue + lnFunc(matrix[i][j])
+			returnValue = returnValue + LnFunc(matrix[i][j])
 			sumForRow += matrix[i][j]
 		}
-		returnValue = returnValue - lnFunc(sumForRow)
+		returnValue = returnValue - LnFunc(sumForRow)
 		total += sumForRow
 	}
 	if utils.Eq(total, 0) {
@@ -196,7 +209,7 @@ func entropyConditionedOnRows(matrix [][]float64) float64 {
 	return -returnValue / (total * math.Log(2))
 }
 
-func lnFunc(num float64) float64 {
+func LnFunc(num float64) float64 {
 	if num <= 0 {
 		return 0
 	} else {
@@ -204,18 +217,18 @@ func lnFunc(num float64) float64 {
 	}
 }
 
-func (ig *InfoGain) evaluateAttribute(attr int) float64 {
-	return ig.infoGains[attr]
+func (ig *InfoGain) EvaluateAttribute(attr int) float64 {
+	return ig.InfoGains[attr]
 }
 
 func (ig *InfoGain) SetMissingMerge(mm bool) {
-	ig.missingMerge = mm
+	ig.MissingMerge = mm
 }
 
-func (ig *InfoGain) SetBinarize(binarize bool) {
-	ig.binarize = binarize
+func (ig *InfoGain) SetBinarize(Binarize bool) {
+	ig.Binarize = Binarize
 }
 
-func (ig *InfoGain) InfoGains() []float64 {
-	return ig.infoGains
+func (ig *InfoGain) InfoGains_() []float64 {
+	return ig.InfoGains
 }

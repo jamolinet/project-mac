@@ -10,87 +10,87 @@ import (
 	"strings"
 )
 
-// Converts all nominal attributes into binary numeric attributes.
+// Converts all nominal attributes into binary Numeric attributes.
 // An attribute with k values is transformed into k binary attributes if the class is nominal
 // (using the one-attribute-per-value approach). Binary attributes are left binary, if option '-A' is not given.
-// If the class is numeric, you might want to use the supervised version of this filter.
+// If the class is Numeric, you might want to use the supervised version of this filter.
 
 type NominalToBinary struct {
-	// Stores which columns to act on
-	columns            []int
-	selectedAttributes []int
-	isRangeInUse       bool
-	// Are the new attributes going to be nominal or numeric ones?
-	numeric bool
+	// Stores which Columns to act on
+	Columns            []int
+	SelectedAttributes []int
+	IsRangeInUse       bool
+	// Are the new attributes going to be nominal or Numeric ones?
+	Numeric bool
 	// Are all values transformed into new attributes?
-	transformAll bool
+	TransformAll bool
 	// Whether we need to transform at all
-	needToTransform bool
-	input, output   data.Instances
-	firstTime       bool
-	invertSel       bool
-	outputQueue     queue.Q
+	NeedToTransform bool
+	Input_, Output_   data.Instances
+	FirstTime       bool
+	InvertSel       bool
+	OutputQueue     queue.Q
 	IsNil string
 }
 
 func NewNominalToBinary() NominalToBinary {
 	var ntb NominalToBinary
-	ntb.numeric = true
-	ntb.needToTransform, ntb.transformAll = false, false
-	ntb.isRangeInUse = false
-	ntb.firstTime = true
-	ntb.invertSel = false
-	ntb.outputQueue.Init()
+	ntb.Numeric = true
+	ntb.NeedToTransform, ntb.TransformAll = false, false
+	ntb.IsRangeInUse = false
+	ntb.FirstTime = true
+	ntb.InvertSel = false
+	ntb.OutputQueue.Init()
 	ntb.IsNil = "no"
 	return ntb
 }
 
 func NewNominalToBinaryWithInstances(data data.Instances) NominalToBinary {
 	var ntb NominalToBinary
-	ntb.numeric = true
-	ntb.needToTransform, ntb.transformAll = false, false
-	ntb.isRangeInUse = false
-	ntb.firstTime = true
-	ntb.input = data
-	ntb.outputQueue.Init()
+	ntb.Numeric = true
+	ntb.NeedToTransform, ntb.TransformAll = false, false
+	ntb.IsRangeInUse = false
+	ntb.FirstTime = true
+	ntb.Input_ = data
+	ntb.OutputQueue.Init()
 	ntb.IsNil = "no"
 	return ntb
 }
 
 // Execute the filter
 func (m *NominalToBinary) Exec(instances data.Instances) error {
-	if m.firstTime {
-		m.firstTime = false
+	if m.FirstTime {
+		m.FirstTime = false
 	}
 	m.SetInputFormat(instances)
 
-	for _, instance := range m.input.Instances() {
-		m.convertInstance(instance)
+	for _, instance := range m.Input_.Instances() {
+		m.ConvertInstance(instance)
 	}
 	return nil
 }
 
-// Input an instance for filtering
+// Input_ an instance for filtering
 func (m *NominalToBinary) Input(instance data.Instance) {
-	m.convertInstance(instance)
+	m.ConvertInstance(instance)
 }
 
 // Convert an instance over
-func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance {
-	if !m.needToTransform {
-		m.output.Add(instance)
+func (m *NominalToBinary) ConvertInstance(instance data.Instance) data.Instance {
+	if !m.NeedToTransform {
+		m.Output_.Add(instance)
 		return instance
 	}
 
-	vals := make([]float64, m.output.NumAttributes())
+	vals := make([]float64, m.Output_.NumAttributes())
 	attSoFar := 0
 
-	for j, att := range m.input.Attributes() {
-		if !att.IsNominal() || (j == m.input.ClassIndex() || !m.isInRange(j)) {
+	for j, att := range m.Input_.Attributes() {
+		if !att.IsNominal() || (j == m.Input_.ClassIndex() || !m.IsInRange(j)) {
 			vals[attSoFar] = instance.Value(j)
 			attSoFar++
 		} else {
-			if att.NumValues() <= 2 && (!m.transformAll) {
+			if att.NumValues() <= 2 && (!m.TransformAll) {
 				vals[attSoFar] = instance.Value(j)
 				attSoFar++
 			} else {
@@ -127,32 +127,32 @@ func (m *NominalToBinary) convertInstance(instance data.Instance) data.Instance 
 	inst.SetIndices(indices)
 	inst.SetRealValues(values)
 	for k, i := range indices {
-		if m.output.Attribute(i).IsNominal() {
+		if m.Output_.Attribute(i).IsNominal() {
 			if math.IsNaN(values[k]) {
 				inst.AddValues("?")
 			} else {
-				inst.AddValues(m.output.Attributes()[i].Values()[int(values[k])])
+				inst.AddValues(m.Output_.Attributes()[i].Values()[int(values[k])])
 			}
-		} else if m.output.Attributes()[i].IsNominal() && !m.output.Attributes()[i].IsString() {
-			inst.AddValues(m.output.Attributes()[i].Values()[i])
+		} else if m.Output_.Attributes()[i].IsNominal() && !m.Output_.Attributes()[i].IsString() {
+			inst.AddValues(m.Output_.Attributes()[i].Values()[i])
 		} else {
-			inst.AddValues(m.output.Attributes()[i].Name())
+			inst.AddValues(m.Output_.Attributes()[i].Name())
 		}
 	}
 	inst.SetNumAttributes(len(values))
-	m.output.Add(inst)
-	m.outputQueue.Push(inst)
+	m.Output_.Add(inst)
+	m.OutputQueue.Push(inst)
 	println("pushed")
 	return inst
 }
 
 func (m *NominalToBinary) SetInputFormat(data data.Instances) {
-	m.input = data
-	m.getSelectedAttributes(len(data.Attributes()))
+	m.Input_ = data
+	m.GetSelectedAttributes(len(data.Attributes()))
 	m.SetOuputFormat()
 }
 
-// Set the output format if the class is nominal
+// Set the Output_ format if the class is nominal
 func (m *NominalToBinary) SetOuputFormat() {
 	newAtts := make([]data.Attribute, 0)
 	var newClassIndex int
@@ -161,21 +161,21 @@ func (m *NominalToBinary) SetOuputFormat() {
 	vals := make([]string, 2)
 
 	//Compute new attributes
-	m.needToTransform = false
-	for i, att := range m.input.Attributes() {
-		if att.IsNominal() && i != m.input.ClassIndex() && (att.NumValues() > 2 || m.transformAll || m.numeric) {
-			m.needToTransform = true
+	m.NeedToTransform = false
+	for i, att := range m.Input_.Attributes() {
+		if att.IsNominal() && i != m.Input_.ClassIndex() && (att.NumValues() > 2 || m.TransformAll || m.Numeric) {
+			m.NeedToTransform = true
 			break
 		}
 	}
 
-	newClassIndex = m.input.ClassIndex()
-	for j, att := range m.input.Attributes() {
-		if !att.IsNominal() || j == m.input.ClassIndex() || !m.isInRange(j) {
+	newClassIndex = m.Input_.ClassIndex()
+	for j, att := range m.Input_.Attributes() {
+		if !att.IsNominal() || j == m.Input_.ClassIndex() || !m.IsInRange(j) {
 			newAtts = append(newAtts, att)
 		} else {
-			if att.NumValues() <= 2 && !m.transformAll {
-				if m.numeric {
+			if att.NumValues() <= 2 && !m.TransformAll {
+				if m.Numeric {
 					atemp := data.NewAttribute()
 					atemp.SetName(att.Name())
 					newAtts = append(newAtts, atemp)
@@ -183,14 +183,14 @@ func (m *NominalToBinary) SetOuputFormat() {
 					newAtts = append(newAtts, att)
 				}
 			} else {
-				if newClassIndex >= 0 && j < m.input.ClassIndex() {
+				if newClassIndex >= 0 && j < m.Input_.ClassIndex() {
 					newClassIndex += att.NumValues() - 1
 				}
 
 				//Compute values for new attributes
 				for k := 0; k < att.NumValues(); k++ {
 					attributeName = att.Name() + "=" + att.Value(k)
-					if m.numeric {
+					if m.Numeric {
 						atemp := data.NewAttribute()
 						atemp.SetName(attributeName)
 						newAtts = append(newAtts, atemp)
@@ -206,22 +206,22 @@ func (m *NominalToBinary) SetOuputFormat() {
 		}
 	}
 	outputFormat.SetAttributes(newAtts)
-	outputFormat.SetDatasetName(m.input.DatasetName())
+	outputFormat.SetDatasetName(m.Input_.DatasetName())
 	outputFormat.SetClassIndex(newClassIndex)
-	m.output = outputFormat
+	m.Output_ = outputFormat
 }
 
-func (r *NominalToBinary) isInRange(f int) bool {
+func (r *NominalToBinary) IsInRange(f int) bool {
 	// omit the class from the evaluation
 	//	if r.hasClass && r.classIndex == f {
 	//		return true
 	//	}
 	//
-	//	if !r.isRangeInUse || len(r.notInclude) == 0 {
+	//	if !r.IsRangeInUse || len(r.notInclude) == 0 {
 	//		return false
 	//	}
 
-	for _, sel := range r.columns {
+	for _, sel := range r.Columns {
 		if sel == f {
 			return true
 		}
@@ -235,7 +235,7 @@ func (ntb *NominalToBinary) SetRange(rang string) {
 		panic("The range cannot be empty")
 	}
 	if strings.EqualFold(rang, "all") {
-		ntb.isRangeInUse = false
+		ntb.IsRangeInUse = false
 		return
 	}
 	selected := make([]int, 0)
@@ -267,25 +267,25 @@ func (ntb *NominalToBinary) SetRange(rang string) {
 			selected = append(selected, int(index))
 		}
 		sort.Ints(selected)
-		ntb.columns = selected
-		ntb.isRangeInUse = true
+		ntb.Columns = selected
+		ntb.IsRangeInUse = true
 	}
 }
 
 func (m *NominalToBinary) SetInvertSelection(set bool) {
-	m.invertSel = set
+	m.InvertSel = set
 }
 
-func (m *NominalToBinary) getSelectedAttributes(numAttributes int) {
-	if !m.invertSel {
-		m.selectedAttributes = m.columns
+func (m *NominalToBinary) GetSelectedAttributes(numAttributes int) {
+	if !m.InvertSel {
+		m.SelectedAttributes = m.Columns
 	} else {
 		//a very costly implementation, **must be changed in the future**
-		for j := range m.columns {
+		for j := range m.Columns {
 			for i := 0; i < numAttributes; i++ {
 				if j != i {
 					contains := func() bool {
-						for _, k := range m.selectedAttributes {
+						for _, k := range m.SelectedAttributes {
 							if i == k {
 								return true
 							}
@@ -293,7 +293,7 @@ func (m *NominalToBinary) getSelectedAttributes(numAttributes int) {
 						return false
 					}
 					if !contains() {
-						m.selectedAttributes = append(m.selectedAttributes, i)
+						m.SelectedAttributes = append(m.SelectedAttributes, i)
 					}
 				} else {
 					break
@@ -301,24 +301,24 @@ func (m *NominalToBinary) getSelectedAttributes(numAttributes int) {
 			}
 		}
 	}
-	m.columns = m.selectedAttributes
+	m.Columns = m.SelectedAttributes
 }
 
 func (m *NominalToBinary) OutputAll() data.Instances {
-	return m.output
+	return m.Output_
 }
 
 func (m *NominalToBinary) Output() data.Instance {
-	if !m.outputQueue.IsEmpty() {
-		if result, ok := m.outputQueue.Pop().(data.Instance); ok {
+	if !m.OutputQueue.IsEmpty() {
+		if result, ok := m.OutputQueue.Pop().(data.Instance); ok {
 			return result
 		}
 	}
 	return data.NewInstance()
 }
 
-// This method does the function of calling in weka convertInstance(Instance) and then output()
+// This method does the function of calling in weka ConvertInstance(Instance) and then Output_()
 // due in this implementation does not exists the m_OutputQueue value
 func (m *NominalToBinary) ConvertAndReturn(instance data.Instance) data.Instance {
-	return m.convertInstance(instance)
+	return m.ConvertInstance(instance)
 }

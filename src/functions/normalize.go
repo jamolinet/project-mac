@@ -56,7 +56,7 @@ func (m *Normalize) Exec(instances data.Instances) {
 func (m *Normalize) Input(instance data.Instance) {
 	m.outputQueue.Init()
 	if m.minArray == nil {
-		m.bufferInput(instance)
+		m.BufferInput(instance)
 		//println("normalizing")
 	} else {
 		m.ConvertInstance(instance)
@@ -69,7 +69,7 @@ func (m *Normalize) NotNil() bool {
 
 // Adds the supplied input instance to the inputformat dataset for
 // later processing
-func (m *Normalize) bufferInput(inst data.Instance) {
+func (m *Normalize) BufferInput(inst data.Instance) {
 	m.input.Add(inst)
 }
 

@@ -8,68 +8,68 @@ import (
 //this struct is like a mix of weka's Instance and SparseInstance with my own implementation
 type Instance struct {
 	//Constants
-	MissingValue          float64
+	//MissingValue          float64
 	Input_Att, Output_Att int
-	//All values of the instance's attributes
-	values []string
-	//Stores only the nominal or strings attributes' values
+	//All Values_ of the instance's attributes
+	Values_ []string
+	//Stores only the nominal or strings attributes' Values_
 	//nominalStringValues[0] = input attributes, nominalStringValues[1] = output attributes
 	//nominalStringValues [][]string
 	//Stores the nominal or string attributes to the corresponding indexes in nominalStringValues
 	//intNominalStringValues[0] = input attributes, intNominalStringValues[1] = output attributes
 	//intNominalStringValues [][]int
-	//Stores the instance's attribute values //m_AttValues
-	realValues []float64
-	//Stores the missing values
+	//Stores the instance's attribute Values_ //m_AttValues
+	RealValues_ []float64
+	//Stores the missing Values_
 	//missingValues [][]bool
 	//Number of input attributes
 	//numInputAttrs int
 	//NUmber of output attributes
 	//numOutputAttrs int
-	//Stores the instance's attribute values
+	//Stores the instance's attribute Values_
 	//floatValues []float64
-	//Instance's weight
-	weight float64
+	//Instance's Weight_
+	Weight_ float64
 	//The index of the attribute associated with each stored value
-	indices []int
-	//The maximum number of values that can be stored
-	numAttributes int
+	Indices_ []int
+	//The maximum number of Values_ that can be stored
+	NumAttributes_ int
 }
 
 func NewInstance() Instance {
 	var inst Instance
-	inst.MissingValue = math.NaN()
+	//inst.MissingValue = math.NaN()
 	inst.Input_Att = 0
 	inst.Output_Att = 1
-	inst.values = []string{}
+	inst.Values_ = []string{}
 	//	inst.nominalStringValues = make([][]string, 2)
 	//	inst.intNominalStringValues = make([][]int, 2)
-	inst.realValues = []float64{}
+	inst.RealValues_ = []float64{}
 	//	inst.missingValues = make([][]bool, 2)
 	//	inst.numInputAttrs = 0
 	//	inst.numOutputAttrs = 0
-	inst.weight = 0.0
-	inst.indices = make([]int, 0)
-	inst.numAttributes = 0
+	inst.Weight_ = 0.0
+	inst.Indices_ = make([]int, 0)
+	inst.NumAttributes_ = 0
 	return inst
 }
 
-func NewInstanceWeightValues(weight float64, values []float64) Instance {
+func NewInstanceWeightValues(Weight_ float64, Values_ []float64) Instance {
 	var inst Instance
-	inst.MissingValue = math.NaN()
+	//inst.MissingValue = math.NaN()
 	inst.Input_Att = 0
 	inst.Output_Att = 1
-	inst.weight = weight
-	inst.realValues = values
+	inst.Weight_ = Weight_
+	inst.RealValues_ = Values_
 	return inst
 }
 
-func NewSparseInstance(weight float64, vals []float64, atts []Attribute) Instance {
+func NewSparseInstance(Weight_ float64, vals []float64, atts []Attribute) Instance {
 	var inst Instance
-	inst.MissingValue = math.NaN()
+	//inst.MissingValue = math.NaN()
 	inst.Input_Att = 0
 	inst.Output_Att = 1
-	inst.weight = weight
+	inst.Weight_ = Weight_
 
 	tmpValues := make([]float64, 0)
 	tmpInd := make([]int, 0)
@@ -92,18 +92,18 @@ func NewSparseInstance(weight float64, vals []float64, atts []Attribute) Instanc
 			inst.AddValues(atts[j].Name())
 		}
 	}
-	inst.realValues = tmpValues
-	inst.indices = tmpInd
-	inst.numAttributes = len(vals)
+	inst.RealValues_ = tmpValues
+	inst.Indices_ = tmpInd
+	inst.NumAttributes_ = len(vals)
 	return inst
 }
 
-func NewSparseInstanceWithIndexes(weight float64, tmpValues []float64, tmpInd []int, atts []Attribute) Instance {
+func NewSparseInstanceWithIndexes(Weight_ float64, tmpValues []float64, tmpInd []int, atts []Attribute) Instance {
 	var inst Instance
-	inst.MissingValue = math.NaN()
+	//inst.MissingValue = math.NaN()
 	inst.Input_Att = 0
 	inst.Output_Att = 1
-	inst.weight = weight
+	inst.Weight_ = Weight_
 
 	for k, j := range tmpInd {
 		if atts[j].IsNominal() {
@@ -118,18 +118,18 @@ func NewSparseInstanceWithIndexes(weight float64, tmpValues []float64, tmpInd []
 			inst.AddValues(atts[j].Name())
 		}
 	}
-	inst.realValues = tmpValues
-	inst.indices = tmpInd
-	inst.numAttributes = len(atts)
+	inst.RealValues_ = tmpValues
+	inst.Indices_ = tmpInd
+	inst.NumAttributes_ = len(atts)
 	return inst
 }
 
 func (i *Instance) Index(idx int) int {
-	return i.indices[idx]
+	return i.Indices_[idx]
 }
 
 func (i *Instance) ValueSparse(idx int) float64 {
-	return i.realValues[idx]
+	return i.RealValues_[idx]
 }
 
 //for sparse instances only
@@ -138,8 +138,8 @@ func (i *Instance) ClassValue(classIndex int) float64 {
 		panic("Class is not set")
 	}
 	index := i.findIndex(classIndex)
-	if (index >= 0) && (i.indices[index] == classIndex) {
-		return i.realValues[index]
+	if (index >= 0) && (i.Indices_[index] == classIndex) {
+		return i.RealValues_[index]
 	}
 	fmt.Print()
 	return 0.0
@@ -149,14 +149,14 @@ func (i *Instance) ClassValueNotSparse(classIndex int) float64 {
 	if classIndex < 0 {
 		panic("Class is not set")
 	}
-	return i.realValues[classIndex]
+	return i.RealValues_[classIndex]
 }
 
 
 func (i *Instance) Value(idx int) float64 {
 	index := i.findIndex(idx)
-	if (index >= 0) && (i.indices[index] == idx) {
-		return i.realValues[index]
+	if (index >= 0) && (i.Indices_[index] == idx) {
+		return i.RealValues_[index]
 	}
 	return 0.0
 }
@@ -173,18 +173,18 @@ func (i *Instance) IsMissingValue(idx int) bool {
 }
 
 func (i *Instance) IsMissingSparse(idx int) bool {
-	return math.IsNaN(i.realValues[idx])
+	return math.IsNaN(i.RealValues_[idx])
 }
 
 func (i *Instance) AddValues(value string) {
-	i.values = append(i.values, value)
-	//fmt.Println(i.values)
+	i.Values_ = append(i.Values_, value)
+	//fmt.Println(i.Values_)
 }
 
 func (i *Instance) Float64Slice(numAtt int) []float64 {
 	newvalues := make([]float64, numAtt)
-	for j:=range i.realValues {
-		newvalues[i.indices[j]] = i.realValues[j]
+	for j:=range i.RealValues_ {
+		newvalues[i.Indices_[j]] = i.RealValues_[j]
 	}
 	return newvalues
 }
@@ -192,42 +192,42 @@ func (i *Instance) Float64Slice(numAtt int) []float64 {
 //for sparse instances only
 func (i *Instance) findIndex(index int) int {
 	min := 0
-	max := len(i.indices) - 1
+	max := len(i.Indices_) - 1
 	if max == -1 {
 		return -1
 	}
 	//Binary search
-	for (i.indices[min] <= index) && (i.indices[max] >= index) {
+	for (i.Indices_[min] <= index) && (i.Indices_[max] >= index) {
 		current := (max + min) / 2
-		if i.indices[current] > index {
+		if i.Indices_[current] > index {
 			max = current - 1
-		} else if i.indices[current] < index {
+		} else if i.Indices_[current] < index {
 			min = current + 1
 		} else {
 			return current
 		}
 	}
-	if i.indices[max] < index {
+	if i.Indices_[max] < index {
 		return max
 	} else {
 		return min - 1
 	}
 }
 
-func (i *Instance) SparseInstance(weight float64, values []float64, indices []int, maxValues int, atts []Attribute) {
+func (i *Instance) SparseInstance(Weight_ float64, Values_ []float64, Indices_ []int, maxValues int, atts []Attribute) {
 
-	for j := 0; j < len(values); j++ {
-		if values[j] != 0 {
-			i.realValues = append(i.realValues, values[j])
-			i.indices = append(i.indices, indices[j])
+	for j := 0; j < len(Values_); j++ {
+		if Values_[j] != 0 {
+			i.RealValues_ = append(i.RealValues_, Values_[j])
+			i.Indices_ = append(i.Indices_, Indices_[j])
 		}
 	}
-	for k, j := range indices {
+	for k, j := range Indices_ {
 		if atts[j].IsNominal() {
-			if math.IsNaN(values[k]) {
+			if math.IsNaN(Values_[k]) {
 				i.AddValues("?")
 			} else {
-				i.AddValues(atts[j].Values()[int(values[k])])
+				i.AddValues(atts[j].Values()[int(Values_[k])])
 			}
 		} else if atts[j].IsNominal() && !atts[j].IsString() {
 			i.AddValues(atts[j].Values()[j])
@@ -236,8 +236,8 @@ func (i *Instance) SparseInstance(weight float64, values []float64, indices []in
 		}
 	}
 		
-	i.SetWeight(weight)
-	i.numAttributes = maxValues
+	i.SetWeight(Weight_)
+	i.NumAttributes_ = maxValues
 //	fmt.Println(i.Indices())	
 //		fmt.Println(i.RealValues(),"iyiyiiyiyiyiy", i.NumAttributes())
 }
@@ -246,16 +246,16 @@ func (i *Instance) SetClassMissing(classIndex int) {
 	if classIndex < 0 {
 		panic("Class is not set!")
 	}
-	i.SetMissing(classIndex)
+	//i.SetMissing(classIndex)
 }
 
-func (i *Instance) SetMissing(attIndex int) {
-	i.SetValue(attIndex, math.NaN())
-}
+//func (i *Instance) SetMissing(attIndex int) {
+//	i.SetValue(attIndex, math.NaN())
+//}
 
 func (i *Instance) SetValue(attIndex int, value float64) {
 	i.freshAttributeVector()
-	i.realValues[attIndex] = value
+	i.RealValues_[attIndex] = value
 }
 
 /**
@@ -263,18 +263,18 @@ func (i *Instance) SetValue(attIndex int, value float64) {
  * overwrites it with the clone.
  */
 func (i *Instance) freshAttributeVector() {
-	i.realValues = i.ToFloat64Slice()
+	i.RealValues_ = i.ToFloat64Slice()
 }
 
-// Returns the values of each attribute as an array of float64.
+// Returns the Values_ of each attribute as an array of float64.
 func (i *Instance) ToFloat64Slice() []float64 {
-	newValues := make([]float64, len(i.realValues))
-	copy(newValues, i.realValues)
+	newValues := make([]float64, len(i.RealValues_))
+	copy(newValues, i.RealValues_)
 	return newValues
 }
 
 //func (i *Instance) AddValuesWithIndex(idx int, value string) {
-//	i.values[idx] = value
+//	i.Values_[idx] = value
 //}
 //
 //func (i *Instance) AddNominalStringValues(direction int, idx int, value string) {
@@ -289,11 +289,11 @@ func (i *Instance) ToFloat64Slice() []float64 {
 //}
 
 func (i *Instance) AddRealValues(value float64) {
-	i.realValues = append(i.realValues, value)
+	i.RealValues_ = append(i.RealValues_, value)
 }
 
 func (i *Instance) AddRealValuesIndex(idx int, value float64) {
-	i.realValues[idx] = value
+	i.RealValues_[idx] = value
 }
 
 //func (i *Instance) AddMissingValues(direction int, idx int, value bool) {
@@ -301,34 +301,34 @@ func (i *Instance) AddRealValuesIndex(idx int, value float64) {
 //}
 
 func (i *Instance) AddIndices(idx int) {
-	i.indices = append(i.indices, idx)
+	i.Indices_ = append(i.Indices_, idx)
 }
 
 //Gets methods
 
 func (i *Instance) Indices() []int {
-	return i.indices
+	return i.Indices_
 }
 
 func (i *Instance) NumAttributes() int {
-	if i.numAttributes > len(i.realValues) {
-		return len(i.realValues)
+	if i.NumAttributes_ > len(i.RealValues_) {
+		return len(i.RealValues_)
 	}
-	return i.numAttributes
+	return i.NumAttributes_
 }
 
 func (i *Instance) NumAttributesSparse() int {
-	return i.numAttributes
+	return i.NumAttributes_
 }
 
 func (i *Instance) NumAttributesTest() int {
 	
 	
-	return i.numAttributes
+	return i.NumAttributes_
 }
 
 func (i *Instance) Values() []string {
-	return i.values
+	return i.Values_
 }
 
 //func (i *Instance) NominalStringValues() [][]string {
@@ -340,7 +340,7 @@ func (i *Instance) Values() []string {
 //}
 //
 func (i *Instance) RealValues() []float64 {
-	return i.realValues
+	return i.RealValues_
 }
 
 //
@@ -357,21 +357,21 @@ func (i *Instance) RealValues() []float64 {
 //}
 
 func (i *Instance) Weight() float64 {
-	return i.weight
+	return i.Weight_
 }
 
 //Sets methods
 
-func (i *Instance) SetIndices(indices []int) {
-	i.indices = indices
+func (i *Instance) SetIndices(Indices_ []int) {
+	i.Indices_ = Indices_
 }
 
 func (i *Instance) SetNumAttributes(numAttrs int) {
-	i.numAttributes = numAttrs
+	i.NumAttributes_ = numAttrs
 }
 
-func (i *Instance) SetValues(values []string) {
-	i.values = values
+func (i *Instance) SetValues(Values_ []string) {
+	i.Values_ = Values_
 }
 
 //func (i *Instance) SetNominalStringValues(nsv [][]string) {
@@ -382,8 +382,8 @@ func (i *Instance) SetValues(values []string) {
 //	i.intNominalStringValues = insv
 //}
 //
-func (i *Instance) SetRealValues(realValues []float64) {
-	i.realValues = realValues
+func (i *Instance) SetRealValues(RealValues_ []float64) {
+	i.RealValues_ = RealValues_
 }
 
 //
@@ -399,6 +399,6 @@ func (i *Instance) SetRealValues(realValues []float64) {
 //	i.numInputAttrs = niu
 //}
 
-func (i *Instance) SetWeight(weight float64) {
-	i.weight = weight
+func (i *Instance) SetWeight(Weight_ float64) {
+	i.Weight_ = Weight_
 }

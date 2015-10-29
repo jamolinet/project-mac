@@ -6,8 +6,8 @@ import (
 )
 
 type NumericToBinary struct {
-	input  data.Instances
-	output data.Instances
+	Input  data.Instances
+	Output_ data.Instances
 	NotNil bool
 }
 
@@ -21,19 +21,19 @@ func (ntb *NumericToBinary) Exec(instances data.Instances) {
 	ntb.SetInput(instances)
 	tmp := make([]data.Instance,len(instances.Instances()))
 	for i, instance := range instances.Instances() {
-		tmp[i] = ntb.convertInstance(instance)
+		tmp[i] = ntb.ConvertInstance(instance)
 	}
-	ntb.output.SetInstances(tmp)
+	ntb.Output_.SetInstances(tmp)
 }
 
-func (ntb *NumericToBinary) convertInstance(instance data.Instance) data.Instance {
+func (ntb *NumericToBinary) ConvertInstance(instance data.Instance) data.Instance {
 	inst := data.NewInstance()
 	vals := make([]float64, len(instance.RealValues()))
 	newIndexes := make([]int, len(instance.RealValues()))
 	for j := range instance.RealValues() {
-		att := ntb.input.Attribute(instance.Index(j))
-		if att.Type() != data.NUMERIC || instance.Index(j) == ntb.input.ClassIndex() {
-			//fmt.Println(ntb.input.ClassIndex())
+		att := ntb.Input.Attribute(instance.Index(j))
+		if att.Type() != data.NUMERIC || instance.Index(j) == ntb.Input.ClassIndex() {
+			//fmt.Println(ntb.Input.ClassIndex())
 			vals[j] = instance.ValueSparse(j)
 		} else {
 			if instance.IsMissingValue(j) {
@@ -53,18 +53,18 @@ func (ntb *NumericToBinary) convertInstance(instance data.Instance) data.Instanc
 }
 
 func (ntb *NumericToBinary) SetInput(data data.Instances) {
-	ntb.input = data
+	ntb.Input = data
 	ntb.SetOutput()
 }
 
 func (ntb *NumericToBinary) SetOutput() {
 	newAtts := make([]data.Attribute, 0)
-	newClassIndex := ntb.input.ClassIndex()
+	newClassIndex := ntb.Input.ClassIndex()
 	out := data.NewInstances()
 	vals := make([]string, 2)
 
 	// Compute new attributes
-	for j, att := range ntb.input.Attributes() {
+	for j, att := range ntb.Input.Attributes() {
 		if j == newClassIndex || att.Type() != data.NUMERIC {
 			newAtts = append(newAtts,att)
 		} else {
@@ -84,11 +84,11 @@ func (ntb *NumericToBinary) SetOutput() {
 		}
 	}
 	out.SetAttributes(newAtts)
-	out.SetDatasetName(ntb.input.DatasetName())
+	out.SetDatasetName(ntb.Input.DatasetName())
 	out.SetClassIndex(newClassIndex)
-	ntb.output = out
+	ntb.Output_ = out
 }
 
 func (ntb *NumericToBinary) Output() data.Instances {
-	return ntb.output
+	return ntb.Output_
 }

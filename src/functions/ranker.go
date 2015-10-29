@@ -11,49 +11,49 @@ import (
 )
 
 type Ranker struct {
-	isRangeInUse  bool      //if we using a range of of not include attributes
-	notInclude    []int     //Indexes of not include atributes, attributes not include are attributes that it won't be processed
-	numAttributes int       //The number of attribtes
-	hasClass      bool      //Data has class attribute
-	classIndex    int       //Class index of the data
-	attrList      []int     //Holds the ordered list of attributes
-	attrMerit     []float64 //Holds the list of attribute merit scores
-	threshold     float64   // A threshold by which to discard attributes
-	numToSelect   int       //The number of attributes to select. -1 indicates that all attributes
-	//are to be retained. Has precedence over threshold
-	calculateNumToSelect int
+	IsRangeInUse  bool      //if we using a range of of not include attributes
+	NotInclude    []int     //Indexes of not include atributes, attributes not include are attributes that it won't be processed
+	NumAttributes int       //The number of attribtes
+	HasClass      bool      //Data has class attribute
+	ClassIndex    int       //Class index of the data
+	AttrList      []int     //Holds the ordered list of attributes
+	AttrMerit     []float64 //Holds the list of attribute merit scores
+	Threshold     float64   // A Threshold by which to discard attributes
+	NumToSelect   int       //The number of attributes to select. -1 indicates that all attributes
+	//are to be retained. Has precedence over Threshold
+	CalculateNumToSelect int
 }
 
 //Create a new Ranker
 func NewRanker() Ranker {
 	var r Ranker
-	r.isRangeInUse = false
-	r.numToSelect = -1
-	r.threshold = -math.MaxFloat64
+	r.IsRangeInUse = false
+	r.NumToSelect = -1
+	r.Threshold = -math.MaxFloat64
 	return r
 }
 
 //Kind of a dummy search algorithm. Calls a Attribute evaluator to
-//evaluate each attribute not included in the notInclude array and then sorts
+//evaluate each attribute not included in the NotInclude array and then sorts
 //them to produce a ranked list of attributes.
 func (r *Ranker) Search(evaluator InfoGain, instances data.Instances) []int {
 	var i, j int
-	r.numAttributes = len(instances.Attributes())
-	r.classIndex = instances.ClassIndex()
-	if r.classIndex >= 0 {
-		r.hasClass = true
+	r.NumAttributes = len(instances.Attributes())
+	r.ClassIndex = instances.ClassIndex()
+	if r.ClassIndex >= 0 {
+		r.HasClass = true
 	} else {
-		r.hasClass = false
+		r.HasClass = false
 	}
 	sl := 0
-	if r.isRangeInUse || len(r.notInclude) > 0 {
-		sl = len(r.notInclude)
+	if r.IsRangeInUse || len(r.NotInclude) > 0 {
+		sl = len(r.NotInclude)
 	}
-	if (r.isRangeInUse || len(r.notInclude) > 0) && r.hasClass {
+	if (r.IsRangeInUse || len(r.NotInclude) > 0) && r.HasClass {
 		// see if the supplied list contains the class index
 		isIn := false
-		for _, sel := range r.notInclude {
-			if sel == r.classIndex {
+		for _, sel := range r.NotInclude {
+			if sel == r.ClassIndex {
 				isIn = true
 				break
 			}
@@ -62,49 +62,43 @@ func (r *Ranker) Search(evaluator InfoGain, instances data.Instances) []int {
 			sl++
 		}
 	} else {
-		if r.hasClass {
+		if r.HasClass {
 			sl++
 		}
 	}
-	//fmt.Println(len(r.notInclude), "noInclude")
-	//fmt.Println(sl, "sl")
-	r.attrList = make([]int, r.numAttributes-sl)
-	r.attrMerit = make([]float64, r.numAttributes-sl)
+	r.AttrList = make([]int, r.NumAttributes-sl)
+	r.AttrMerit = make([]float64, r.NumAttributes-sl)
 	// add in those attributes that are include to select
-	for i, j = 0, 0; i < r.numAttributes; i++ {
-		if !r.inNotInclude(i) {
-			r.attrList[j] = i
+	for i, j = 0, 0; i < r.NumAttributes; i++ {
+		if !r.InNotInclude(i) {
+			r.AttrList[j] = i
 			j++
 		}
 	}
-	//fmt.Println(r.attrList, "r.attrList")
-	for i := range r.attrList {
-		r.attrMerit[i] = evaluator.evaluateAttribute(r.attrList[i])
+	for i := range r.AttrList {
+		r.AttrMerit[i] = evaluator.EvaluateAttribute(r.AttrList[i])
 	}
-	//fmt.Println(r.attrMerit, "merrit")
-	tempRanked := r.rankedAttributes()
-	rankedAttributes := make([]int, len(r.attrList))
+	tempRanked := r.RankedAttributes()
+	rankedAttributes := make([]int, len(r.AttrList))
 	for i := range rankedAttributes {
 		rankedAttributes[i] = int(tempRanked[i][0])
 	}
-	//fmt.Println(rankedAttributes, "rankedAttributes")
 	return rankedAttributes
 }
 
 //Sorts the evaluated attribute list
-func (r *Ranker) rankedAttributes() [][]float64 {
+func (r *Ranker) RankedAttributes() [][]float64 {
 	var i, j int
-	if len(r.attrList) == 0 || len(r.attrMerit) == 0 {
+	if len(r.AttrList) == 0 || len(r.AttrMerit) == 0 {
 		panic("Fisrt execute the search to obtain the ranked attribute list")
 	}
-	rank := make([]int, len(r.attrMerit))
+	rank := make([]int, len(r.AttrMerit))
 	h := 0
-	for i := range r.attrMerit {
+	for i := range r.AttrMerit {
 		rank[i] = h
 		h++
 	}
-	ranked := utils.SortFloat(r.attrMerit)
-	//fmt.Println(ranked, r.attrMerit, "ranked")
+	ranked := utils.SortFloat(r.AttrMerit)
 	// reverse the order of the ranked indexes
 	bestToWorst := make([][]float64, len(ranked))
 	for i := range bestToWorst {
@@ -117,44 +111,44 @@ func (r *Ranker) rankedAttributes() [][]float64 {
 	// convert the indexes to attribute indexes
 	for i := range bestToWorst {
 		temp := int(bestToWorst[i][0])
-		bestToWorst[i][0] = float64(r.attrList[temp])
-		bestToWorst[i][1] = r.attrMerit[temp]
+		bestToWorst[i][0] = float64(r.AttrList[temp])
+		bestToWorst[i][1] = r.AttrMerit[temp]
 	}
-	if r.numToSelect > len(bestToWorst) {
+	if r.NumToSelect > len(bestToWorst) {
 		panic("More attributes requested than exist in the data")
 	}
-	if r.numToSelect <= 0 {
-		if r.threshold == -math.MaxFloat64 {
-			r.calculateNumToSelect = len(bestToWorst)
+	if r.NumToSelect <= 0 {
+		if r.Threshold == -math.MaxFloat64 {
+			r.CalculateNumToSelect = len(bestToWorst)
 		} else {
-			r.determineNumToSelectFromThreshold(bestToWorst)
+			r.DetermineNumToSelectFromThreshold(bestToWorst)
 		}
 	}
-	//fmt.Println(bestToWorst, "bestToWorst")
+
 	return bestToWorst
 }
 
-func (r *Ranker) determineNumToSelectFromThreshold(ranking [][]float64) {
+func (r *Ranker) DetermineNumToSelectFromThreshold(ranking [][]float64) {
 	count := 0
 	for i := range ranking {
-		if ranking[i][1] > r.threshold {
+		if ranking[i][1] > r.Threshold {
 			count++
 		}
 	}
-	r.calculateNumToSelect = count
+	r.CalculateNumToSelect = count
 }
 
-func (r *Ranker) inNotInclude(f int) bool {
+func (r *Ranker) InNotInclude(f int) bool {
 	// omit the class from the evaluation
-	if r.hasClass && r.classIndex == f {
+	if r.HasClass && r.ClassIndex == f {
 		return true
 	}
 
-	if !r.isRangeInUse || len(r.notInclude) == 0 {
+	if !r.IsRangeInUse || len(r.NotInclude) == 0 {
 		return false
 	}
 
-	for _, sel := range r.notInclude {
+	for _, sel := range r.NotInclude {
 		if sel == f {
 			return true
 		}
@@ -196,8 +190,8 @@ func (r *Ranker) SetRange(rang string) {
 			selected = append(selected, int(index))
 		}
 		sort.Ints(selected)
-		r.notInclude = selected
-		r.isRangeInUse = true
+		r.NotInclude = selected
+		r.IsRangeInUse = true
 	}
 }
 
@@ -206,19 +200,19 @@ func (r *Ranker) GenerateRanking() bool {
 }
 
 func (r *Ranker) GetCalculatedNumToSelect() int {
-	if r.numToSelect > 0 {
-		r.calculateNumToSelect = r.numToSelect
+	if r.NumToSelect > 0 {
+		r.CalculateNumToSelect = r.NumToSelect
 	}
-	return r.calculateNumToSelect
+	return r.CalculateNumToSelect
 }
 
-func (r *Ranker) NotInclude() []int {
-	return r.notInclude
+func (r *Ranker) NotInclude_() []int {
+	return r.NotInclude
 }
 
-func (r *Ranker) SetThreshold(threshold float64) {
-	r.threshold = threshold
+func (r *Ranker) SetThreshold(Threshold float64) {
+	r.Threshold = Threshold
 }
-func (r *Ranker) SetNumToSelect(numToSelect int) {
-	r.numToSelect = numToSelect
+func (r *Ranker) SetNumToSelect(NumToSelect int) {
+	r.NumToSelect = NumToSelect
 }

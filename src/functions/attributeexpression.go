@@ -18,14 +18,14 @@ const (
 )
 
 type AttributeOperand struct {
-	attributeIndex int64
-	negative       bool
+	AttributeIndex int64
+	Negative       bool
 }
 
 func NewAttributeOperand(operand string, sign bool) AttributeOperand {
 	var ao AttributeOperand
-	ao.attributeIndex, _ = strconv.ParseInt(operand[1:], 10, 32)
-	ao.negative = sign
+	ao.AttributeIndex, _ = strconv.ParseInt(operand[1:], 10, 32)
+	ao.Negative = sign
 	return ao
 }
 
@@ -48,7 +48,7 @@ type Operator struct {
 
 func NewOperator(opp rune) Operator {
 	var o Operator
-	if isOperator(opp) {
+	if IsOperator(opp) {
 		panic("Unrecognized operator:" + string(opp))
 	}
 	o.operator = opp
@@ -57,7 +57,7 @@ func NewOperator(opp rune) Operator {
 
 //Apply this operator to the supplied arguments
 
-func (m *Operator) applyOperator(first, second float64) float64 {
+func (m *Operator) ApplyOperator(first, second float64) float64 {
 	switch m.operator {
 	case '+':
 		return (first + second)
@@ -74,7 +74,7 @@ func (m *Operator) applyOperator(first, second float64) float64 {
 }
 
 //Apply this operator (function) to the supplied argument
-func (m *Operator) applyFunction(value float64) float64 {
+func (m *Operator) ApplyFunction(value float64) float64 {
 	switch m.operator {
 	case 'l':
 		return math.Log(value)
@@ -91,7 +91,7 @@ func (m *Operator) applyFunction(value float64) float64 {
 	case 'h':
 		return math.Ceil(value)
 	case 'r':
-		return math_Rint(value)
+		return Math_Rint(value)
 	case 't':
 		return math.Tan(value)
 	case 'n':
@@ -100,21 +100,21 @@ func (m *Operator) applyFunction(value float64) float64 {
 	return math.NaN()
 }
 
-func isOperator(tok rune) bool {
+func IsOperator(tok rune) bool {
 	if strings.IndexRune(OPERATORS, tok) == -1 {
 		return false
 	}
 	return true
 }
 
-func isUnaryFunction(tok rune) bool {
+func IsUnaryFunction(tok rune) bool {
 	if strings.IndexRune(UNARY_FUNCTIONS, tok) == -1 {
 		return false
 	}
 	return true
 }
 
-func math_Rint(a float64) float64 {
+func Math_Rint(a float64) float64 {
 	twoToThe52 := uint64(1) << uint64(52)
 	sign := math.Copysign(1.0, a)
 	a = math.Abs(a)
@@ -141,7 +141,7 @@ func NewAttributeExpression() AttributeExpression {
 }
 
 // Handles the processing of an infix operand to postfix
-func (m *AttributeExpression) handleOperand(tok string) {
+func (m *AttributeExpression) HandleOperand(tok string) {
 	if strings.IndexRune(tok, 'a') != -1 {
 		m.postFixExpVector = append(m.postFixExpVector, NewAttributeOperand(tok, m.signMod))
 	} else {
@@ -152,7 +152,7 @@ func (m *AttributeExpression) handleOperand(tok string) {
 }
 
 // Handles the processing of an infix operator to postfix
-func (m *AttributeExpression) handleOperator(tok string) {
+func (m *AttributeExpression) HandleOperator(tok string) {
 	push := true
 
 	tokchar := rune(tok[0])
@@ -167,12 +167,12 @@ func (m *AttributeExpression) handleOperator(tok string) {
 			do = popop[0] != '('
 		}
 	} else {
-		infixToc := infixPriority(rune(tok[0]))
-		for !m.operatorStack.IsEmpty() && stackPriority(rune(m.operatorStack.Peek().(string)[0])) >= infixToc {
+		infixToc := InfixPriority(rune(tok[0]))
+		for !m.operatorStack.IsEmpty() && StackPriority(rune(m.operatorStack.Peek().(string)[0])) >= infixToc {
 
 			// try an catch double operators and see if the current one can
 			// be interpreted as the sign of an upcoming number
-			if len(m.previousTok) == 1 && isOperator(rune(m.previousTok[0])) && m.previousTok[0] != ')' {
+			if len(m.previousTok) == 1 && IsOperator(rune(m.previousTok[0])) && m.previousTok[0] != ')' {
 				if tok[0] == '-' {
 					m.signMod = true
 				} else {
@@ -204,7 +204,7 @@ func (m *AttributeExpression) EvaluateExpression(instance datas.Instance) float6
 	vals := make([]float64, instance.NumAttributes()+1)
 	for i := 0; i < instance.NumAttributes(); i++ {
 		if instance.IsMissingValue(i) {
-			vals[i] = instance.MissingValue
+		//	vals[i] = instance.MissingValue
 		} else {
 			vals[i] = instance.Value(i)
 		}
@@ -221,21 +221,21 @@ func (m *AttributeExpression) EvaluateExpressionFloat64(vals []float64) {
 		if nextob_, ok := nextob.(NumericOperand); ok {
 			operands.Push(nextob_.numericConst)
 		} else if nextob_, ok := nextob.(AttributeOperand); ok {
-			value := vals[nextob_.attributeIndex]
-			if nextob_.negative {
+			value := vals[nextob_.AttributeIndex]
+			if nextob_.Negative {
 				value = -value
 			}
 			operands.Push(value)
 		} else if nextob_, ok := nextob.(Operator); ok {
 			op := nextob_.operator
-			if isUnaryFunction(op) {
+			if IsUnaryFunction(op) {
 				operand := operands.Pop().(float64)
-				result := nextob_.applyFunction(operand)
+				result := nextob_.ApplyFunction(operand)
 				operands.Push(result)
 			} else {
 				second := operands.Pop().(float64)
 				first := operands.Pop().(float64)
-				result := nextob_.applyOperator(first,second)
+				result := nextob_.ApplyOperator(first,second)
 				operands.Push(result)
 			}
 		} else {
@@ -271,19 +271,19 @@ func (m *AttributeExpression) ConvertInfixToPostfix(infixExp string) {
 	infixExp = strings.Replace(infixExp, "tan", "t", -1)
 	infixExp = strings.Replace(infixExp, "sin", "n", -1)
 	
-	tokenizer := stringTokenizer(infixExp)
+	tokenizer := StringTokenizer(infixExp)
 	m.postFixExpVector = make([]interface{},0)
 	for _,tok := range tokenizer {
 		
 		if len(tok) > 1 {
-			m.handleOperand(tok)
+			m.HandleOperand(tok)
 		} else {
 			// probably an operator, but could be a single char operand
-			if isOperator(rune(tok[0])) {
-				m.handleOperator(tok)
+			if IsOperator(rune(tok[0])) {
+				m.HandleOperator(tok)
 			} else {
 				// should be a numeric constant
-				m.handleOperand(tok)
+				m.HandleOperand(tok)
 			}
 		}
 		m.previousTok = tok
@@ -297,7 +297,7 @@ func (m *AttributeExpression) ConvertInfixToPostfix(infixExp string) {
 	}
 }
 
-func stringTokenizer(s string) []string {
+func StringTokenizer(s string) []string {
 	for _, char := range s {
 		for _, o := range OPERATORS {
 			if char == o {
@@ -310,7 +310,7 @@ func stringTokenizer(s string) []string {
 }
 
 // Return the infix priority of an operator
-func infixPriority(opp rune) int {
+func InfixPriority(opp rune) int {
 	switch opp {
 	case 'l':
 	case 'b':
@@ -344,7 +344,7 @@ func infixPriority(opp rune) int {
 }
 
 // Return the stack priority of an operator
-func stackPriority(opp rune) int {
+func StackPriority(opp rune) int {
 	switch opp {
 	case 'l':
 	case 'b':

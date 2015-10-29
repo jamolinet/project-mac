@@ -5,47 +5,47 @@ import (
 )
 
 type Remove struct {
-	notNil             bool
-	selectedCols       []int //the selected columns
-	selectedAttributes []int //the selected attributes' indexes, the ones we will keep
-	invertSel          bool  //whether to use invert selection or not, the selected attributes will be kept if true
-	outputFormat       data.Instances
+	NotNil             bool
+	SelectedCols       []int //the selected columns
+	SelectedAttributes []int //the selected attributes' indexes, the ones we will keep
+	InvertSel          bool  //whether to use invert selection or not, the selected attributes will be kept if true
+	OutputFormat       data.Instances
 }
 
 func NewRemove() Remove {
 	var r Remove
-	r.invertSel = true
-	r.notNil = true
+	r.InvertSel = true
+	r.NotNil = true
 	return r
 }
 
 func (r *Remove) IsNotNil() bool {
-	return r.notNil
+	return r.NotNil
 }
 
 // Start execution of the filter
 func (r *Remove) Exec(instances data.Instances) {
 	r.SetInputFormat(instances)
 	for _, instance := range instances.Instances() {
-		if r.outputFormat.NumAttributes() == 0 {
+		if r.OutputFormat.NumAttributes() == 0 {
 			continue
 		}
-		vals := make([]float64, r.outputFormat.NumAttributes())
-		for i, current := range r.selectedAttributes {
+		vals := make([]float64, r.OutputFormat.NumAttributes())
+		for i, current := range r.SelectedAttributes {
 			vals[i] = instance.Value(current)
 		}
 		//Instance is always sparse
-		inst := data.NewSparseInstance(instance.Weight(), vals, r.outputFormat.Attributes())
-		r.outputFormat.Add(inst)
+		inst := data.NewSparseInstance(instance.Weight(), vals, r.OutputFormat.Attributes())
+		r.OutputFormat.Add(inst)
 	}
 }
 
 // Sets the format of the input and output instances
 func (r *Remove) SetInputFormat(instInfo data.Instances) {
-	r.getSelectedAttributes(len(instInfo.Attributes()))
+	r.GetSelectedAttributes(len(instInfo.Attributes()))
 	attributes := make([]data.Attribute, 0)
 	outputClass := -1
-	for _, current := range r.selectedAttributes {
+	for _, current := range r.SelectedAttributes {
 		if instInfo.ClassIndex() == current {
 			outputClass = len(attributes)
 		}
@@ -54,29 +54,29 @@ func (r *Remove) SetInputFormat(instInfo data.Instances) {
 		attributes = append(attributes, keep)
 	}
 	//fmt.Println(len(attributes), "attributes", "\n", outputClass, "outputClass")
-	r.outputFormat = data.NewInstancesWithClassIndex(outputClass)
-	r.outputFormat.SetAttributes(attributes)
-	r.outputFormat.SetDatasetName(instInfo.DatasetName())
+	r.OutputFormat = data.NewInstancesWithClassIndex(outputClass)
+	r.OutputFormat.SetAttributes(attributes)
+	r.OutputFormat.SetDatasetName(instInfo.DatasetName())
 }
 
 func (r *Remove) SetSelectedColumns(cols []int) {
-	r.selectedCols = cols
+	r.SelectedCols = cols
 }
 
 func (r *Remove) SetInvertSelection(flag bool) {
-	r.invertSel = flag
+	r.InvertSel = flag
 }
 
-func (r *Remove) getSelectedAttributes(numAttributes int) {
-	if r.invertSel {
-		r.selectedAttributes = r.selectedCols
+func (r *Remove) GetSelectedAttributes(numAttributes int) {
+	if r.InvertSel {
+		r.SelectedAttributes = r.SelectedCols
 	} else {
 		//a very costly implementation, **must be changed in the future**
-		for j := range r.selectedCols {
+		for j := range r.SelectedCols {
 			for i := 0; i < numAttributes; i++ {
 				if j != i {
 					contains := func() bool {
-						for _, k := range r.selectedAttributes {
+						for _, k := range r.SelectedAttributes {
 							if i == k {
 								return true
 							}
@@ -84,7 +84,7 @@ func (r *Remove) getSelectedAttributes(numAttributes int) {
 						return false
 					}
 					if !contains() {
-						r.selectedAttributes = append(r.selectedAttributes, i)
+						r.SelectedAttributes = append(r.SelectedAttributes, i)
 					}
 				} else {
 					break
@@ -97,15 +97,15 @@ func (r *Remove) getSelectedAttributes(numAttributes int) {
 // This method does the function of calling in weka convertInstance(Instance) and then output()
 // due in this implementation does not exists the m_OutputQueue value
 func (r *Remove) ConvertAndReturn(instance data.Instance) data.Instance {
-	if r.outputFormat.NumAttributes() == 0 {
+	if r.OutputFormat.NumAttributes() == 0 {
 		//nothing is done
 		return instance
 	}
-	vals := make([]float64, r.outputFormat.NumAttributes())
-	for i, current := range r.selectedAttributes {
+	vals := make([]float64, r.OutputFormat.NumAttributes())
+	for i, current := range r.SelectedAttributes {
 		vals[i] = instance.Value(current)
 	}
 	//Instance is always sparse
-	inst := data.NewSparseInstance(instance.Weight(), vals, r.outputFormat.Attributes())
+	inst := data.NewSparseInstance(instance.Weight(), vals, r.OutputFormat.Attributes())
 	return inst
 }

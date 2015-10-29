@@ -127,19 +127,14 @@ func (m *Evaluation) addNumericTrainClass(classValue, weight float64) {
 	m.numTrainCLassVals++
 }
 
-func (m *Evaluation) CrossValidateModel(classifier Classifier, data datas.Instances, numFolds int, random *rand.Rand) {
+func (m *Evaluation) CrossValidateModel(classifier Classifier, data datas.Instances, numFolds int, random *rand.Rand) Classifier {
+	var class Classifier
 
-	//	for _, p := range data.Instances() {
-	//		fmt.Println(p.Weight(), "CrossValidationModel")
-	//	}
 	//Make a copy of the data we can reorder
 	data.Randomizes(random)
 	if data.ClassAttribute().IsNominal() {
 		data.Stratify(numFolds)
 	}
-	//	for _, p := range data.Instances() {
-	//		fmt.Println(p.Weight(), "CrossValidationModel_1")
-	//	}
 
 	//Do the folds
 	for i := 0; i < numFolds; i++ {
@@ -150,8 +145,10 @@ func (m *Evaluation) CrossValidateModel(classifier Classifier, data datas.Instan
 		fmt.Println("-----------------------------------------------------------------------")
 		test := data.TestCV(numFolds, i)
 		m.EvaluateModel(copiedClassifier, test)
+		class = copiedClassifier
 	}
 	m.numFolds = numFolds
+	return class
 }
 
 func (m *Evaluation) EvaluateModel(classifier Classifier, data datas.Instances) []float64 {
@@ -169,12 +166,8 @@ func (m *Evaluation) EvaluateModel(classifier Classifier, data datas.Instances) 
 // Evaluates the classifier on a single instance and records the prediction
 // (if the class is nominal).
 func (m *Evaluation) EvaluateModelOnceAndRecordPrediction(classifier Classifier, instance datas.Instance, data *datas.Instances) float64 {
-	//fmt.Println(instance.RealValues(), "instance.RealValues()")
 	classMissing := instance
 	pred := 0.0
-	//println(data.ClassIndex())
-	//fmt.Println(data.NumAttributes())
-	//fmt.Println(data.ClassIndex(), "class index")
 	classMissing.SetClassMissing(data.ClassIndex())
 	if m.classIsNominal {
 		if m.predictions == nil {
@@ -185,9 +178,7 @@ func (m *Evaluation) EvaluateModelOnceAndRecordPrediction(classifier Classifier,
 		if dist[int(pred)] <= 0 {
 			pred = int(math.NaN())
 		}
-		//fmt.Println(dist,"distribution")
 		m.updateStatsForClassfier(dist, instance, data)
-		//m.predictions = append(m.predictions, NewNominalPredictionWeight(instance.ClassValue(data.ClassIndex()), dist, instance.Weight()))
 		m.predictions = append(m.predictions, NewNominalPredictionWeight(instance.ValueSparse(data.ClassIndex()), dist, instance.Weight()))
 	} else {
 		/* THIS IS VERY IMPORTANT!!!!!!!!!!
@@ -203,14 +194,14 @@ func (m *Evaluation) EvaluateModelOnceAndRecordPrediction(classifier Classifier,
 	return pred
 }
 
+func (m *Evaluation) UpdateStatsForClassfier(predictedDistribution []float64, instance datas.Instance, data *datas.Instances) {
+	m.updateStatsForClassfier(predictedDistribution, instance, data)
+}
+
 // Updates all the statistics about a classifiers performance for the current
 // test instance.
 func (m *Evaluation) updateStatsForClassfier(predictedDistribution []float64, instance datas.Instance, data *datas.Instances) {
-
-	//actualClass := int(instance.ClassValue(data.ClassIndex()))
 	actualClass := int(instance.ValueSparse(data.ClassIndex()))
-	//fmt.Println(instance.RealValues(), "RealValues")
-	//fmt.Println(actualClass,"actualClass", data.ClassIndex(), "classIndex", instance.ValueSparse(data.ClassIndex()), predictedDistribution)
 	if !instance.ClassMissing(data.ClassIndex()) {
 		m.updateMargins(predictedDistribution, actualClass, instance.Weight(), data)
 
@@ -465,38 +456,3 @@ func math_Rint(a float64) float64 {
 	}
 	return sign * a
 }
-
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////
