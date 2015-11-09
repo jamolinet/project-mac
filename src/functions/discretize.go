@@ -429,9 +429,7 @@ func (m *Discretize) ConvertInstance(instance data.Instance) {
 			index++
 		}
 	}
-
 	inst := data.NewInstance()
-	inst.SetWeight(instance.Weight())
 	//Get values and indexes different to zero
 	indices := make([]int, len(vals))
 	values := make([]float64, len(vals))
@@ -443,25 +441,12 @@ func (m *Discretize) ConvertInstance(instance data.Instance) {
 			idx++
 		}
 	}
-	inst.SetIndices(indices)
-	inst.SetRealValues(values)
-	for k, i := range indices {
-		if m.Output_.Attribute(i).IsNominal() {
-			if math.IsNaN(values[k]) {
-				inst.AddValues("?")
-			} else {
-				inst.AddValues(m.Output_.Attributes()[i].Values()[int(values[k])])
-			}
-		} else if m.Output_.Attributes()[i].IsNominal() && !m.Output_.Attributes()[i].IsString() {
-			inst.AddValues(m.Output_.Attributes()[i].Values()[i])
-		} else {
-			inst.AddValues(m.Output_.Attributes()[i].Name())
-		}
-	}
+	
+	inst = data.NewSparseInstance(instance.Weight(),vals,m.Input_.Attributes())
 	inst.SetNumAttributes(len(values))
 	m.Output_.Add(inst)
 	m.OutputQueue.Push(inst)
-	println("pushed")
+	//println("pushed")
 }
 
 func (m *Discretize) SetRange(rang string) {

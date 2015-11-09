@@ -46,9 +46,8 @@ func (ntb *NumericToBinary) ConvertInstance(instance data.Instance) data.Instanc
 		}
 		newIndexes[j] = instance.Index(j)
 	}
+	inst = data.NewSparseInstanceWithIndexes(instance.Weight(), vals, newIndexes, ntb.Input.Attributes())
 	inst.SetWeight(instance.Weight())
-	inst.SetRealValues(vals)
-	inst.SetIndices(newIndexes)
 	return inst
 }
 

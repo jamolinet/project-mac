@@ -353,14 +353,60 @@ func (m *Evaluation) ToSummaryString(title string, printComplexityStatistics boo
 			text += "Incorrectly Classified Instances   "
 			text += strconv.FormatInt(int64(m.incorrect), 10) + "     " + strconv.FormatFloat(100*m.incorrect/m.withClass, 'f', 4, 64) + " %\n"
 			text += "Kappa statistic                    "
-			//text += utils.Float64ToString()
+			text += strconv.FormatFloat(m.kappa(), 'f', 4, 64) + " %\n"
 		}
 	}
 	return text
 }
 
 func (m *Evaluation) kappa() float64 {
-	return 0
+	sumRows := make([]float64, len(m.confusionMatrix))
+	sumColumns := make([]float64, len(m.confusionMatrix))
+	sumOfWeights := 0.0
+	for i := range m.confusionMatrix {
+		for j := range m.confusionMatrix[i] {
+			sumRows[i] += m.confusionMatrix[i][j]
+			sumColumns[j] += m.confusionMatrix[i][j]
+			sumOfWeights += m.confusionMatrix[i][j]
+		}
+	}
+	correct, chanceAgreement := 0.0, 0.0
+	for i := range m.confusionMatrix {
+		chanceAgreement += (sumRows[i] * sumColumns[i])
+		correct += m.confusionMatrix[i][i]
+	}
+	chanceAgreement /= (sumOfWeights * sumOfWeights)
+	correct /= sumOfWeights
+
+	if chanceAgreement < 1 {
+		return (correct - chanceAgreement) / (1 - chanceAgreement)
+	} else {
+		return 1
+	}
+}
+
+func (m *Evaluation) ToClassDetailsString(title string) string {
+	if !m.classIsNominal {
+		panic("Evaluation: No confusion matrix possible!")
+	}
+
+	text := title + "\n               TP Rate   FP Rate" + "   Precision   Recall" + "  F-Measure  Class\n"
+	for i := 0; i < m.numClasses; i++ {
+		text += "               " + strconv.FormatFloat(m.truePositiveRate(i), 'f', 3, 64) + "      "
+		text += strconv.FormatFloat(m.falsePositiveRate(i), 'f', 3, 64) + "      "
+		text += strconv.FormatFloat(m.precision(i), 'f', 3, 64) + "      "
+		text += strconv.FormatFloat(m.recall(i), 'f', 3, 64) + "     "
+		text += strconv.FormatFloat(m.fMeasure(i), 'f', 3, 64) + "   "
+		text += m.classNames[i] + "   \n"
+	}
+
+	text += "Weighted Avg.  " + strconv.FormatFloat(m.weightedTruePositiveRate(), 'f', 3, 64)
+	text += "      " + strconv.FormatFloat(m.weightedFalsePositiveRate(), 'f', 3, 64)
+	text += "      " + strconv.FormatFloat(m.weightedPrecision(), 'f', 3, 64)
+	text += "      " + strconv.FormatFloat(m.weightedRecall(), 'f', 3, 64)
+	text += "     " + strconv.FormatFloat(m.weightedFMeasure(), 'f', 3, 64)
+	text += "\n"
+	return text
 }
 
 func (m *Evaluation) ToMatrixString(title string) string {
@@ -455,4 +501,143 @@ func math_Rint(a float64) float64 {
 		a = (float64(twoToThe52) + a) - float64(twoToThe52)
 	}
 	return sign * a
+}
+
+func (m *Evaluation) truePositiveRate(classIndex int) float64 {
+	correct, total := 0.0, 0.0
+	for j := 0; j < m.numClasses; j++ {
+		if j == classIndex {
+			correct += m.confusionMatrix[classIndex][j]
+		}
+		total += m.confusionMatrix[classIndex][j]
+	}
+	if total == 0 {
+		return 0
+	}
+	return correct / total
+}
+
+func (m *Evaluation) falsePositiveRate(classIndex int) float64 {
+	incorrect, total := 0.0, 0.0
+	for i := 0; i < m.numClasses; i++ {
+		if i != classIndex {
+			for j := 0; j < m.numClasses; j++ {
+				if j == classIndex {
+					incorrect += m.confusionMatrix[i][j]
+				}
+				total += m.confusionMatrix[i][j]
+			}
+		}
+	}
+	if total == 0 {
+		return 0
+	}
+	return incorrect / total
+}
+
+func (m *Evaluation) precision(classIndex int) float64 {
+	correct, total := 0.0, 0.0
+	for i := 0; i < m.numClasses; i++ {
+		if i == classIndex {
+			correct += m.confusionMatrix[i][classIndex]
+		}
+		total += m.confusionMatrix[i][classIndex]
+	}
+	if total == 0 {
+		return 0
+	}
+	return correct / total
+}
+
+func (m *Evaluation) recall(classIndex int) float64 {
+	return m.truePositiveRate(classIndex)
+}
+
+func (m *Evaluation) fMeasure(classIndex int) float64 {
+	precision := m.precision(classIndex)
+	recall := m.recall(classIndex)
+	if (precision + recall) == 0 {
+		return 0
+	}
+	return 2 * precision * recall / (precision + recall)
+}
+
+func (m *Evaluation) weightedTruePositiveRate() float64 {
+	classCounts := make([]float64, m.numClasses)
+	classCountSum := 0.0
+
+	for i := 0; i < m.numClasses; i++ {
+		for j := 0; j < m.numClasses; j++ {
+			classCounts[i] += m.confusionMatrix[i][j]
+		}
+		classCountSum += classCounts[i]
+	}
+
+	truePosTotal := 0.0
+	for i := 0; i < m.numClasses; i++ {
+		temp := m.truePositiveRate(i)
+		truePosTotal += (temp * classCounts[i])
+	}
+	return truePosTotal / classCountSum
+}
+
+func (m *Evaluation) weightedFalsePositiveRate() float64 {
+	classCounts := make([]float64, m.numClasses)
+	classCountSum := 0.0
+
+	for i := 0; i < m.numClasses; i++ {
+		for j := 0; j < m.numClasses; j++ {
+			classCounts[i] += m.confusionMatrix[i][j]
+		}
+		classCountSum += classCounts[i]
+	}
+
+	falsePosTotal := 0.0
+	for i := 0; i < m.numClasses; i++ {
+		temp := m.falsePositiveRate(i)
+		falsePosTotal += (temp * classCounts[i])
+	}
+	return falsePosTotal / classCountSum
+}
+
+func (m *Evaluation) weightedPrecision() float64 {
+	classCounts := make([]float64, m.numClasses)
+	classCountSum := 0.0
+
+	for i := 0; i < m.numClasses; i++ {
+		for j := 0; j < m.numClasses; j++ {
+			classCounts[i] += m.confusionMatrix[i][j]
+		}
+		classCountSum += classCounts[i]
+	}
+
+	precisionTotal := 0.0
+	for i := 0; i < m.numClasses; i++ {
+		temp := m.precision(i)
+		precisionTotal += (temp * classCounts[i])
+	}
+	return precisionTotal / classCountSum
+}
+
+func (m *Evaluation) weightedRecall() float64 {
+	return m.weightedTruePositiveRate()
+}
+
+func (m *Evaluation) weightedFMeasure() float64 {
+	classCounts := make([]float64, m.numClasses)
+	classCountSum := 0.0
+
+	for i := 0; i < m.numClasses; i++ {
+		for j := 0; j < m.numClasses; j++ {
+			classCounts[i] += m.confusionMatrix[i][j]
+		}
+		classCountSum += classCounts[i]
+	}
+
+	fMeasureTotal := 0.0
+	for i := 0; i < m.numClasses; i++ {
+		temp := m.fMeasure(i)
+		fMeasureTotal += (temp * classCounts[i])
+	}
+	return fMeasureTotal / classCountSum
 }

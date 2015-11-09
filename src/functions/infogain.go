@@ -90,6 +90,9 @@ func (ig *InfoGain) BuildEvaluator(instances data.Instances) {
 						counts[inst.Index(i)][0][numClasses] -= inst.Weight()
 					}
 				} else {
+//					fmt.Println(len(counts), "counts", inst.Index(i),inst.ValueSparse(i),inst.ClassValue(classIndex))
+//					fmt.Println(counts[inst.Index(i)], "[inst.Index(i)]")
+//					fmt.Println(inst.RealValues_)
 					counts[inst.Index(i)][int(inst.ValueSparse(i))][int(inst.ClassValue(classIndex))] += inst.Weight()
 					counts[inst.Index(i)][0][int(inst.ClassValue(classIndex))] -= inst.Weight()
 				}

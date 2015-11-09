@@ -478,7 +478,7 @@ func (stwv *StringToWordVector) NormalizeInstance(inst *data.Instance, firstCopy
 			val := inst.RealValues()[j] * stwv.AvgDocLength / docLength
 			inst.AddRealValuesIndex(j, val)
 			if val == 0 {
-				//fmt.Println("Setting value %d to zero", inst.Indices()[j])
+				fmt.Println("Setting value %d to zero", inst.Indices()[j])
 				j--
 			}
 		}

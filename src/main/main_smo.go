@@ -15,7 +15,7 @@ import (
 func main() {
 
 	instances := data.NewInstancesWithClassIndex(0)
-	err := instances.ParseFile("C:\\Users\\Yuri\\Documents\\Go\\src\\github.com\\project-mac\\src\\main\\_AppsLemmas.arff")
+	err := instances.ParseFile("C:\\Users\\Yuri\\Documents\\Go\\src\\github.com\\project-mac\\src\\main\\AppsLemmas.arff")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -57,10 +57,11 @@ func main() {
 	classifier.SetAS(as)
 	/*class := */ evaluator.CrossValidateModel(classifier, instances,5, random)
 	fmt.Println(evaluator.ToSummaryString("\nResults\n======\n", false))
+	fmt.Println(evaluator.ToClassDetailsString("=== Detailed Accuracy By Class ===\n"))
 	fmt.Println(evaluator.ToMatrixString("=== Confusion Matrix ===\n"))
 	fmt.Println("IS DONE!!!!!!!!")
 
-	loadSMO(_smo)
+	//loadSMO(_smo)
 }
 
 func loadSMO(_smo smo.SMO) {
@@ -78,7 +79,7 @@ func loadSMO(_smo smo.SMO) {
 	ranker := functions.NewRanker()
 	ranker.SetThreshold(0.0)
 	ranker.SetNumToSelect(-1)
-	ig.SetBinarize(true)
+	ig.SetBinarize(false)
 	as := functions.NewAttributeSelection()
 	as.SetEvaluator(ig)
 	as.SetSearchMethod(ranker)
